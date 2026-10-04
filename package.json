@@ -1,0 +1,16 @@
+{
+  "name": "rozgaar-setu",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c cyan,green \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "npm --prefix client run dev -- --host 0.0.0.0",
+    "dev:server": "npm --prefix server run dev",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "npm --prefix client run build",
+    "build:server": "npm --prefix server run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
