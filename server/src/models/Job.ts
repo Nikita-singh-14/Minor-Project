@@ -1,7 +1,7 @@
 import { Schema, model, type InferSchemaType } from 'mongoose'
 
 const jobSchema = new Schema({
-  employerId: { type: Schema.Types.ObjectId, required: true, index: true },
+  employerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   employerName: { type: String, required: true, trim: true, maxlength: 100 },
   title: { type: String, required: true, trim: true, maxlength: 120 },
   description: { type: String, required: true, trim: true, maxlength: 4000 },

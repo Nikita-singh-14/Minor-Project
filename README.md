@@ -16,19 +16,25 @@ Requirements: Node.js 22+ and npm. MongoDB is needed for API job searches; the f
 npm install
 npm install --prefix client
 npm install --prefix server
-Copy-Item .env.example .env
+if (-not (Test-Path server/.env)) { Copy-Item .env.example server/.env }
 npm run dev
 ```
 
-The client runs at `http://localhost:5173` and proxies `/api` requests to the API at `http://localhost:4000`. Set `MONGODB_URI` in `.env` to a running MongoDB instance. Check `GET /api/health` to see API and database status.
+The client runs at `http://localhost:5173` and proxies `/api` requests to `http://localhost:4000` by default. If the API `PORT` differs, set `VITE_API_PROXY_TARGET` in `client/.env.local` to the matching API URL. Set `MONGODB_URI` in `server/.env` to a running MongoDB instance. Check `/api/health` through the client proxy or directly on the API port.
+
+Phone OTP authentication has local development support only. Set `OTP_DEV_MODE=true` in `server/.env` while developing to return the generated code to the local client. The API refuses OTP requests in production until an SMS delivery provider is configured; never enable development OTP mode in production.
+
+For local OTP testing, add `OTP_DEV_MODE=true` to `server/.env`. If your API is running on port 3000, add `VITE_API_PROXY_TARGET=http://localhost:3000` to `client/.env.local`; the Vite proxy defaults to port 4000. Register with `POST /api/auth/otp/request` using `purpose: "register"`, `phone`, `name`, and `role`, then verify at `POST /api/auth/otp/verify`. Login uses the same request endpoint with `purpose: "login"` and `phone`. Authenticated session inspection/revocation is available at `GET /api/auth/me` and `POST /api/auth/logout`. Public registration roles are worker and employer; admin accounts must be provisioned outside public signup.
 
 ## Current build
 
 - Responsive Hindi/English job discovery page with location, category, and keyword filters.
 - Sample job and worker listings for the initial Bilaspur experience.
-- Demo-only job posting and application interactions; they are not yet stored in MongoDB.
+- Job listings and job posting use MongoDB when the API and database are available; application markers remain browser-local.
+- Mongoose schemas exist for users, OTP challenges, sessions, jobs, applications, and moderation events. OTP authentication routes create/find users and sessions; application and moderation schemas are not yet wired to routes.
+- Phone OTP challenge and revocable session flows are available for local development; employer job creation requires an employer session and derives ownership from that session.
 - Express health endpoint and public, paginated MongoDB job-search endpoint.
-- Authentication, role authorization, worker/employer dashboards, job persistence workflows, and admin moderation are the next implementation phases.
+- Production SMS delivery, application workflows, and admin moderation remain unimplemented.
 
 ## Useful commands
 

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   ArrowRight,
   BadgeCheck,
@@ -22,12 +22,54 @@ import {
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import AuthDialog from './AuthDialog'
 import './App.css'
 
 type Category = { id: string; en: string; hi: string; icon: LucideIcon; tone: string }
-type Job = { id: number; role: string; employer: string; place: string; pay: number; unit: string; posted: string; category: string; distance: string }
+type Job = { id: string; role: string; employer: string; place: string; pay: number; unit: string; posted: string; category: string; distance: string }
 type Worker = { name: string; role: string; rating: string; reviews: number; experience: string; distance: string; image: string; category: string }
 type Dialog = 'worker' | 'employer' | 'admin' | 'post' | null
+
+type Role = 'worker' | 'employer' | 'admin'
+
+type BackendJob = {
+  _id?: string
+  title: string
+  employerName: string
+  category: string
+  payPerDay: number
+  location: { city: string; area: string }
+  createdAt?: string
+  status?: string
+}
+
+type WorkerApplication = {
+  _id?: string
+  status: 'submitted' | 'reviewed' | 'accepted' | 'rejected' | 'withdrawn'
+  createdAt?: string
+  jobId?: {
+    _id?: string
+    title?: string
+    employerName?: string
+    category?: string
+    payPerDay?: number
+    location?: { city?: string; area?: string }
+  }
+}
+
+type EmployerJobSummary = {
+  _id?: string
+  title?: string
+  employerName?: string
+  status?: string
+  applicantSummary?: { submitted?: number; reviewed?: number; accepted?: number; rejected?: number }
+  applications?: Array<{
+    _id?: string
+    status?: string
+    createdAt?: string
+    workerId?: { name?: string; phone?: string; role?: string }
+  }>
+}
 
 const categories: Category[] = [
   { id: 'construction', en: 'Construction', hi: 'निर्माण कार्य', icon: Hammer, tone: 'peach' },
@@ -41,10 +83,10 @@ const categories: Category[] = [
 ]
 
 const jobsSeed: Job[] = [
-  { id: 1, role: 'Mason needed', employer: 'R.K. Builders', place: 'Bilaspur, Chhattisgarh', pay: 700, unit: 'day', posted: 'Today', category: 'construction', distance: '2.1 km' },
-  { id: 2, role: 'Electrician required', employer: 'Sharma Electricals', place: 'Torwa, Bilaspur', pay: 850, unit: 'day', posted: 'Yesterday', category: 'electrician', distance: '3.4 km' },
-  { id: 3, role: 'House painter needed', employer: 'Amit Verma', place: 'Bilaspur', pay: 500, unit: 'day', posted: 'Today', category: 'painter', distance: '1.8 km' },
-  { id: 4, role: 'Office cleaning staff', employer: 'City Care Services', place: 'Sakri, Bilaspur', pay: 600, unit: 'day', posted: '2 days ago', category: 'cleaning', distance: '4.2 km' },
+  { id: 'job-1', role: 'Mason needed', employer: 'R.K. Builders', place: 'Bilaspur, Chhattisgarh', pay: 700, unit: 'day', posted: 'Today', category: 'construction', distance: '2.1 km' },
+  { id: 'job-2', role: 'Electrician required', employer: 'Sharma Electricals', place: 'Torwa, Bilaspur', pay: 850, unit: 'day', posted: 'Yesterday', category: 'electrician', distance: '3.4 km' },
+  { id: 'job-3', role: 'House painter needed', employer: 'Amit Verma', place: 'Bilaspur', pay: 500, unit: 'day', posted: 'Today', category: 'painter', distance: '1.8 km' },
+  { id: 'job-4', role: 'Office cleaning staff', employer: 'City Care Services', place: 'Sakri, Bilaspur', pay: 600, unit: 'day', posted: '2 days ago', category: 'cleaning', distance: '4.2 km' },
 ]
 
 const workers: Worker[] = [
@@ -63,7 +105,7 @@ const copy = {
     popular: 'Popular categories', allCategories: 'All categories', nearby: 'Jobs near you', allJobs: 'View all jobs', available: 'Available workers', allWorkers: 'View all workers',
     availableBadge: 'Available', apply: 'Apply', perDay: '/ day', statsTitle: 'New opportunities across India', statsWorkers: 'Registered workers', statsJobs: 'Jobs posted', statsTowns: 'Towns & cities', rating: 'Average rating',
     safe: 'Safe & verified', local: 'Your neighbourhood', simple: 'Easy for everyone', postTitle: 'Post work', close: 'Close dialog', roleTitle: 'Welcome to Rozgaar Setu',
-    roleSub: 'Choose how you want to get started.', createAccount: 'Continue as', name: 'Your name', phone: 'Phone number', continue: 'Continue', postHeading: 'Post a local job', jobTitle: 'Job title', category: 'Category', pay: 'Pay per day (₹)', area: 'Area', publish: 'Publish job', posted: 'Your job has been added to the demo listings.', applied: 'Application saved for this demo.', noResults: 'No matching listings. Try a different search or category.',
+    roleSub: 'Choose how you want to get started.', createAccount: 'Continue as', name: 'Your name', phone: 'Phone number', continue: 'Continue', postHeading: 'Post a local job', jobTitle: 'Job title', category: 'Category', pay: 'Pay per day (₹)', area: 'Area', publish: 'Publish job', posted: 'Your job has been added to the live listings.', applied: 'Application saved for this demo.', noResults: 'No matching listings. Try a different search or category.',
   },
   hi: {
     home: 'होम', jobs: 'काम खोजें', workers: 'कामगार खोजें', how: 'कैसे काम करता है', about: 'हमारे बारे में', help: 'मदद',
@@ -73,7 +115,7 @@ const copy = {
     popular: 'लोकप्रिय श्रेणियां', allCategories: 'सभी श्रेणियां', nearby: 'आपके पास के काम', allJobs: 'सभी काम देखें', available: 'उपलब्ध कामगार', allWorkers: 'सभी कामगार देखें',
     availableBadge: 'उपलब्ध', apply: 'आवेदन करें', perDay: '/ दिन', statsTitle: 'पूरे भारत में नए अवसर', statsWorkers: 'पंजीकृत कामगार', statsJobs: 'पोस्ट किए काम', statsTowns: 'शहरों में उपलब्ध', rating: 'औसत रेटिंग',
     safe: 'सुरक्षित और भरोसेमंद', local: 'आपके आसपास', simple: 'सबके लिए आसान', postTitle: 'काम पोस्ट करें', close: 'डायलॉग बंद करें', roleTitle: 'Rozgaar Setu में आपका स्वागत है',
-    roleSub: 'शुरू करने का तरीका चुनें।', createAccount: 'जारी रखें', name: 'आपका नाम', phone: 'फोन नंबर', continue: 'आगे बढ़ें', postHeading: 'स्थानीय काम पोस्ट करें', jobTitle: 'काम का नाम', category: 'श्रेणी', pay: 'रोज़ की मज़दूरी (₹)', area: 'इलाका', publish: 'काम पोस्ट करें', posted: 'डेमो सूची में आपका काम जोड़ दिया गया है।', applied: 'डेमो के लिए आपका आवेदन सेव हो गया है।', noResults: 'कोई काम नहीं मिला। दूसरी खोज या श्रेणी चुनें।',
+    roleSub: 'शुरू करने का तरीका चुनें।', createAccount: 'जारी रखें', name: 'आपका नाम', phone: 'फोन नंबर', continue: 'आगे बढ़ें', postHeading: 'स्थानीय काम पोस्ट करें', jobTitle: 'काम का नाम', category: 'श्रेणी', pay: 'रोज़ की मज़दूरी (₹)', area: 'इलाका', publish: 'काम पोस्ट करें', posted: 'आपका काम लाइव सूची में जोड़ दिया गया है।', applied: 'डेमो के लिए आपका आवेदन सेव हो गया है।', noResults: 'कोई काम नहीं मिला। दूसरी खोज या श्रेणी चुनें।',
   },
 }
 
@@ -82,12 +124,137 @@ function App() {
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('Bilaspur')
   const [activeCategory, setActiveCategory] = useState('all')
-  const [jobs, setJobs] = useState(jobsSeed)
-  const [applied, setApplied] = useState<number[]>(() => JSON.parse(localStorage.getItem('rozgaar-applications') ?? '[]') as number[])
+  const [role, setRole] = useState<Role>('worker')
+  const [jobs, setJobs] = useState<Job[]>(jobsSeed)
+  const [applied, setApplied] = useState<string[]>(() => JSON.parse(localStorage.getItem('rozgaar-applications') ?? '[]') as string[])
   const [dialog, setDialog] = useState<Dialog>(null)
   const [toast, setToast] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [loadingJobs, setLoadingJobs] = useState(false)
+  const [workerApplications, setWorkerApplications] = useState<WorkerApplication[]>([])
+  const [employerJobs, setEmployerJobs] = useState<EmployerJobSummary[]>([])
+  const [authRole, setAuthRole] = useState<Role | null>(null)
+  const [authOpen, setAuthOpen] = useState(false)
   const t = copy[language]
+
+  useEffect(() => {
+    localStorage.removeItem('rozgaar-auth-token')
+    localStorage.removeItem('rozgaar-auth-role')
+
+    let cancelled = false
+    async function restoreSession() {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' })
+        if (response.status === 401) return
+        if (!response.ok) throw new Error('Could not restore your session')
+        const payload = await response.json() as { user?: { role?: Role } }
+        if (payload.user?.role === 'worker' || payload.user?.role === 'employer' || payload.user?.role === 'admin') {
+          if (!cancelled) setAuthRole(payload.user.role)
+        }
+      } catch {
+        if (!cancelled) showToast('Could not restore your session. Please sign in again.')
+      }
+    }
+
+    void restoreSession()
+    return () => { cancelled = true }
+  }, [])
+
+  function formatRelativeTime(value: string | undefined) {
+    if (!value) return 'Recently'
+    const diffMs = Date.now() - new Date(value).getTime()
+    const diffHours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)))
+    if (diffHours < 24) return `${diffHours}h ago`
+    const diffDays = Math.round(diffHours / 24)
+    return `${diffDays}d ago`
+  }
+
+  function mapJob(item: BackendJob): Job {
+    return {
+      id: item._id ?? `${item.title}-${item.payPerDay}`,
+      role: item.title,
+      employer: item.employerName,
+      place: `${item.location.area}, ${item.location.city}`,
+      pay: item.payPerDay,
+      unit: 'day',
+      posted: formatRelativeTime(item.createdAt),
+      category: item.category,
+      distance: 'Nearby',
+    }
+  }
+
+  useEffect(() => {
+    async function loadJobs() {
+      setLoadingJobs(true)
+      try {
+        const params = new URLSearchParams({ city: location, page: '1', limit: '12' })
+        const response = await fetch(`/api/jobs?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error('Failed to load jobs')
+        }
+        const payload = await response.json() as { jobs?: BackendJob[] }
+        const nextJobs = (payload.jobs ?? []).map(mapJob)
+        if (nextJobs.length) {
+          setJobs(nextJobs)
+        }
+      } catch {
+        setJobs(jobsSeed)
+        showToast('Using local demo jobs while the API is offline.')
+      } finally {
+        setLoadingJobs(false)
+      }
+    }
+
+    void loadJobs()
+  }, [location])
+
+  useEffect(() => {
+    async function loadWorkerApplications() {
+      if (authRole !== 'worker') {
+        setWorkerApplications([])
+        return
+      }
+
+      try {
+        const response = await fetch('/api/applications/me', {
+          credentials: 'include',
+        })
+        if (!response.ok) {
+          throw new Error('Could not load your applications')
+        }
+        const payload = await response.json() as { applications?: WorkerApplication[] }
+        setWorkerApplications(payload.applications ?? [])
+      } catch {
+        setWorkerApplications([])
+      }
+    }
+
+    void loadWorkerApplications()
+  }, [authRole])
+
+  useEffect(() => {
+    async function loadEmployerJobs() {
+      if (authRole !== 'employer') {
+        setEmployerJobs([])
+        return
+      }
+
+      try {
+        const response = await fetch('/api/employer/jobs', {
+          credentials: 'include',
+        })
+        if (!response.ok) {
+          throw new Error('Could not load employer jobs')
+        }
+        const payload = await response.json() as { jobs?: EmployerJobSummary[] }
+        setEmployerJobs(payload.jobs ?? [])
+      } catch {
+        setEmployerJobs([])
+      }
+    }
+
+    void loadEmployerJobs()
+  }, [authRole])
 
   const visibleJobs = useMemo(() => jobs.filter((job) => {
     const matchesQuery = `${job.role} ${job.employer} ${job.place} ${job.category}`.toLowerCase().includes(query.toLowerCase())
@@ -100,28 +267,139 @@ function App() {
     window.setTimeout(() => setToast(''), 3000)
   }
 
-  function applyForJob(jobId: number) {
-    if (applied.includes(jobId)) return
-    const next = [...applied, jobId]
-    setApplied(next)
-    localStorage.setItem('rozgaar-applications', JSON.stringify(next))
-    showToast(t.applied)
+  function finishAuthentication(authenticatedRole: Role) {
+    setAuthRole(authenticatedRole)
+    setRole(authenticatedRole)
+    setAuthOpen(false)
+    showToast(`Signed in as ${authenticatedRole}.`)
   }
 
-  function publishJob(event: FormEvent<HTMLFormElement>) {
+  async function signOut() {
+    let revokeFailed = false
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!response.ok) revokeFailed = true
+    } catch {
+      revokeFailed = true
+    }
+
+    setAuthRole(null)
+    setRole('worker')
+    showToast(revokeFailed ? 'Signed out on this device; server session revocation could not be confirmed.' : 'Signed out.')
+  }
+
+  async function applyForJob(jobId: string) {
+    if (authRole !== 'worker') {
+      setAuthOpen(true)
+      showToast('Sign in with a worker account to apply for a job.')
+      return
+    }
+
+    const asExisting = applied.includes(jobId)
+    if (asExisting) return
+
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/applications`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const payload = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to submit application')
+      }
+
+      const next = [...applied, jobId]
+      setApplied(next)
+      localStorage.setItem('rozgaar-applications', JSON.stringify(next))
+      setWorkerApplications((current) => [{
+        _id: `${Date.now()}`,
+        status: 'submitted',
+        createdAt: new Date().toISOString(),
+        jobId: {
+          _id: jobId,
+          title: jobs.find((job) => job.id === jobId)?.role ?? 'Applied job',
+          employerName: jobs.find((job) => job.id === jobId)?.employer ?? 'Employer',
+          category: jobs.find((job) => job.id === jobId)?.category ?? 'general',
+          payPerDay: jobs.find((job) => job.id === jobId)?.pay ?? 0,
+          location: { city: location, area: jobs.find((job) => job.id === jobId)?.place ?? location },
+        },
+      }, ...current])
+      showToast(t.applied)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to submit application.'
+      showToast(message)
+    }
+  }
+
+  async function publishJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (authRole !== 'employer') {
+      setDialog(null)
+      setAuthOpen(true)
+      showToast('Sign in with an employer account to post a job.')
+      return
+    }
+
     const form = new FormData(event.currentTarget)
     const category = String(form.get('category'))
-    const newJob: Job = {
-      id: Date.now(), role: String(form.get('title')), employer: 'You', place: String(form.get('area')),
-      pay: Number(form.get('pay')), unit: 'day', posted: 'Just now', category, distance: 'Nearby',
+    const title = String(form.get('title')).trim()
+    const pay = Number(form.get('pay'))
+    const area = String(form.get('area')).trim() || location
+
+    if (!title || Number.isNaN(pay) || pay < 100) {
+      showToast('Please enter a valid job title and pay amount.')
+      return
     }
-    setJobs((current) => [newJob, ...current])
-    setActiveCategory('all')
-    setQuery('')
-    setDialog(null)
-    showToast(t.posted)
-    document.getElementById('jobs')?.scrollIntoView({ behavior: 'smooth' })
+
+    try {
+      const response = await fetch('/api/jobs', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: `${title} in ${area}. Local work opportunity for nearby workers.`,
+          category,
+          location: { city: location, area },
+          payPerDay: pay,
+          openings: 1,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({})) as { job?: BackendJob; error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to publish job')
+      }
+
+      const createdJob = payload.job ? mapJob(payload.job) : {
+        id: `${Date.now()}`,
+        role: title,
+        employer: 'You',
+        place: `${area}, ${location}`,
+        pay,
+        unit: 'day',
+        posted: 'Just now',
+        category,
+        distance: 'Nearby',
+      }
+
+      setJobs((current) => [createdJob, ...current])
+      setActiveCategory('all')
+      setQuery('')
+      setDialog(null)
+      showToast(t.posted)
+      document.getElementById('jobs')?.scrollIntoView({ behavior: 'smooth' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Job could not be published.'
+      showToast(message)
+    }
   }
 
   function scrollTo(id: string) {
@@ -139,8 +417,9 @@ function App() {
         <div className="header-actions">
           <label className="location-control"><MapPin size={15} /><select aria-label="Choose location" value={location} onChange={(event) => setLocation(event.target.value)}><option>Bilaspur</option><option>Raipur</option><option>Korba</option><option>Rajnandgaon</option></select><ChevronDown size={13} /></label>
           <button className="language-control" onClick={() => setLanguage(language === 'hi' ? 'en' : 'hi')} aria-label="Switch language">文 <span>{language === 'hi' ? 'हिंदी' : 'English'}</span><ChevronDown size={13} /></button>
-          <button className="button button-outline header-login" onClick={() => setDialog('worker')}><UsersRound size={15} /> Login</button>
-          <button className="button button-primary header-signup" onClick={() => setDialog('worker')}>Sign Up <ArrowRight size={15} /></button>
+          {authRole
+            ? <button className="button button-outline header-login" onClick={() => void signOut()}>Sign out</button>
+            : <><button className="button button-outline header-login" onClick={() => setAuthOpen(true)}><UsersRound size={15} /> Login</button><button className="button button-primary header-signup" onClick={() => setAuthOpen(true)}>Sign Up <ArrowRight size={15} /></button></>}
           <button className="icon-button mobile-menu" aria-label="Toggle menu" onClick={() => setMobileNavOpen(!mobileNavOpen)}>{mobileNavOpen ? <X /> : <Menu />}</button>
         </div>
         <nav className={`main-nav ${mobileNavOpen ? 'is-open' : ''}`}>
@@ -155,8 +434,20 @@ function App() {
             <h1>{language === 'hi' ? <>काम से बने<br /><span>बेहतर कल।</span></> : <>Work today.<br /><span>Build a better tomorrow.</span></>}</h1>
             <p>{t.subtitle}</p>
             <div className="hero-actions">
-              <button className="role-button role-worker" onClick={() => setDialog('worker')}><UsersRound size={25} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
-              <button className="role-button role-employer" onClick={() => setDialog('post')}><HardHat size={25} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
+              <button className="role-button role-worker" onClick={() => setAuthOpen(true)}><UsersRound size={25} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
+              <button className="role-button role-employer" onClick={() => { if (authRole === 'employer') setDialog('post'); else if (authRole === 'worker') showToast('An employer account is required to post jobs.'); else setAuthOpen(true) }}><HardHat size={25} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
+            </div>
+            <div className="role-switcher" aria-label="Choose dashboard role">
+              {(['worker', 'employer', 'admin'] as Role[]).map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  className={entry === role ? 'is-selected' : ''}
+                  onClick={() => setRole(entry)}
+                >
+                  {entry === 'worker' ? 'Worker' : entry === 'employer' ? 'Employer' : 'Admin'}
+                </button>
+              ))}
             </div>
             <div className="trust-row"><span><ShieldCheck size={17} /> {t.safe}</span><span><MapPin size={17} /> {t.local}</span><span><UsersRound size={17} /> {t.simple}</span></div>
           </div>
@@ -190,13 +481,51 @@ function App() {
           <div className="list-column" id="jobs">
             <div className="section-heading compact"><div><span className="section-kicker">WORK THAT FITS YOUR DAY</span><h2>{t.nearby}</h2></div><button className="text-link" onClick={() => { setActiveCategory('all'); setQuery('') }}>{t.allJobs} <ArrowRight size={15} /></button></div>
             <div className="listing-stack">
-              {visibleJobs.length ? visibleJobs.map((job) => {
+              {loadingJobs && <div className="empty-state"><Search size={22} /><p>Loading live jobs…</p></div>}
+              {!loadingJobs && (visibleJobs.length ? visibleJobs.map((job) => {
                 const category = categories.find((item) => item.id === job.category) ?? categories[0]
                 const Icon = category.icon
                 return <article className="job-row" key={job.id}><div className={`listing-icon ${category.tone}`}><Icon size={20} /></div><div className="job-main"><strong>{job.role}</strong><span><MapPin size={12} /> {job.place}</span></div><div className="job-pay"><strong>₹{job.pay} <small>{t.perDay}</small></strong><span><Clock3 size={12} /> {job.posted}</span></div><div className="job-distance">{job.distance}</div><button className={`row-action ${applied.includes(job.id) ? 'is-applied' : ''}`} aria-label={applied.includes(job.id) ? 'Already applied' : `Apply to ${job.role}`} onClick={() => applyForJob(job.id)}>{applied.includes(job.id) ? <BadgeCheck size={19} /> : <ChevronRight size={19} />}</button></article>
-              }) : <div className="empty-state"><Search size={22} /><p>{t.noResults}</p></div>}
+              }) : <div className="empty-state"><Search size={22} /><p>{t.noResults}</p></div>)}
             </div>
           </div>
+
+          {(authRole === 'worker' || authRole === 'employer') && (
+            <div className="list-column" id="dashboard">
+              <div className="section-heading compact"><div><span className="section-kicker">LIVE DASHBOARD</span><h2>{authRole === 'worker' ? 'My applications' : 'Employer summary'}</h2></div></div>
+              <div className="listing-stack">
+                {authRole === 'worker' ? (
+                  workerApplications.length ? workerApplications.map((application) => (
+                    <article className="job-row" key={application._id ?? application.jobId?._id ?? 'application'}>
+                      <div className="job-main">
+                        <strong>{application.jobId?.title ?? 'Application'}</strong>
+                        <span><MapPin size={12} /> {application.jobId?.location?.area ?? 'Nearby'} · {application.jobId?.employerName ?? 'Employer'}</span>
+                      </div>
+                      <div className="job-pay">
+                        <strong>₹{application.jobId?.payPerDay ?? 0} <small>{t.perDay}</small></strong>
+                        <span><Clock3 size={12} /> {formatRelativeTime(application.createdAt)}</span>
+                      </div>
+                      <div className="job-distance"><span className="availability"><span /> {application.status}</span></div>
+                    </article>
+                  )) : <div className="empty-state"><BadgeCheck size={22} /><p>No applications yet.</p></div>
+                ) : (
+                  employerJobs.length ? employerJobs.map((job) => (
+                    <article className="job-row" key={job._id ?? job.title ?? 'employer-job'}>
+                      <div className="job-main">
+                        <strong>{job.title}</strong>
+                        <span><MapPin size={12} /> {job.applicantSummary ? `${job.applicantSummary.submitted ?? 0} new` : 'Applicant list ready'}</span>
+                      </div>
+                      <div className="job-pay">
+                        <strong>{job.applicantSummary ? (job.applicantSummary.accepted ?? 0) : 0} <small>accepted</small></strong>
+                        <span><Clock3 size={12} /> {job.status ?? 'open'}</span>
+                      </div>
+                      <div className="job-distance">{job.applications?.length ?? 0} applicants</div>
+                    </article>
+                  )) : <div className="empty-state"><BriefcaseBusiness size={22} /><p>No jobs posted yet.</p></div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="list-column" id="workers">
             <div className="section-heading compact"><div><span className="section-kicker">SKILLED PEOPLE, NEARBY</span><h2>{t.available}</h2></div><button className="text-link" onClick={() => setDialog('employer')}>{t.allWorkers} <ArrowRight size={15} /></button></div>
@@ -214,9 +543,10 @@ function App() {
         <section className="stats-band"><div className="stats-intro"><span className="india-mark"><MapPin size={31} /></span><div><span className="section-kicker">LOCAL WORK, REAL IMPACT</span><h2>{t.statsTitle}</h2><p>छोटे शहर, बड़े सपने — Rozgaar Setu के साथ</p></div></div><div className="stat"><UsersRound size={22} /><strong>10,000+</strong><span>{t.statsWorkers}</span></div><div className="stat"><BriefcaseBusiness size={22} /><strong>5,000+</strong><span>{t.statsJobs}</span></div><div className="stat"><MapPin size={22} /><strong>200+</strong><span>{t.statsTowns}</span></div><div className="stat"><Star size={22} fill="currentColor" /><strong>4.7</strong><span>{t.rating}</span></div></section>
       </main>
 
-      <footer className="site-footer" id="footer"><div className="footer-brand"><a className="brand footer-logo" href="#top"><span className="brand-mark"><UsersRound size={24} /><span /></span><span className="brand-copy"><strong>Rozgaar <em>Setu</em></strong><small>काम से बने, भारत से जुड़ें</small></span></a><p>“हर हाथ को काम, हर घर में सम्मान”</p></div><div className="footer-links"><strong>Quick links</strong><button onClick={() => scrollTo('jobs')}>{t.jobs}</button><button onClick={() => scrollTo('workers')}>{t.workers}</button><button onClick={() => scrollTo('categories')}>{t.allCategories}</button></div><div className="footer-links"><strong>For everyone</strong><button onClick={() => setDialog('worker')}>{t.worker}</button><button onClick={() => setDialog('post')}>{t.postTitle}</button><button onClick={() => setDialog('admin')}>Admin</button></div><div className="footer-connect"><strong>काम आपके पास है।</strong><span>Bilaspur, Chhattisgarh</span><button className="footer-post" onClick={() => setDialog('post')}>{t.postTitle} <ArrowRight size={15} /></button></div><span className="footer-bottom">Made with care for a stronger India <span>◆</span></span></footer>
+      <footer className="site-footer" id="footer"><div className="footer-brand"><a className="brand footer-logo" href="#top"><span className="brand-mark"><UsersRound size={24} /><span /></span><span className="brand-copy"><strong>Rozgaar <em>Setu</em></strong><small>काम से बने, भारत से जुड़ें</small></span></a><p>“हर हाथ को काम, हर घर में सम्मान”</p></div><div className="footer-links"><strong>Quick links</strong><button onClick={() => scrollTo('jobs')}>{t.jobs}</button><button onClick={() => scrollTo('workers')}>{t.workers}</button><button onClick={() => scrollTo('categories')}>{t.allCategories}</button></div><div className="footer-links"><strong>For everyone</strong><button onClick={() => setAuthOpen(true)}>{t.worker}</button><button onClick={() => setDialog('post')}>{t.postTitle}</button><button onClick={() => setDialog('admin')}>Admin</button></div><div className="footer-connect"><strong>काम आपके पास है।</strong><span>Bilaspur, Chhattisgarh</span><button className="footer-post" onClick={() => setDialog('post')}>{t.postTitle} <ArrowRight size={15} /></button></div><span className="footer-bottom">Made with care for a stronger India <span>◆</span></span></footer>
 
       {dialog && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null) }}><section className="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><button className="dialog-close icon-button" onClick={() => setDialog(null)} aria-label={t.close}><X size={19} /></button>{dialog === 'post' ? <><span className="dialog-icon"><HardHat size={22} /></span><span className="section-kicker">EMPLOYER SPACE</span><h2 id="dialog-title">{t.postHeading}</h2><p className="dialog-description">काम की जानकारी दें, आसपास के कामगारों तक पहुंचें।</p><form className="dialog-form" onSubmit={publishJob}><label>{t.jobTitle}<input name="title" placeholder="जैसे घर की पेंटिंग" required /></label><label>{t.category}<select name="category">{categories.map((category) => <option value={category.id} key={category.id}>{category.hi}</option>)}</select></label><div className="form-split"><label>{t.pay}<input name="pay" type="number" min="100" required placeholder="700" /></label><label>{t.area}<input name="area" required defaultValue={location} /></label></div><button className="button button-primary dialog-submit" type="submit">{t.publish}<ArrowRight size={16} /></button><p className="demo-note">Demo mode: listings are temporary and saved in this browser session.</p></form></> : <><span className="dialog-icon"><UsersRound size={22} /></span><span className="section-kicker">YOUR NEXT STEP</span><h2 id="dialog-title">{t.roleTitle}</h2><p className="dialog-description">{t.roleSub}</p><div className="role-options"><button onClick={() => setDialog('worker')}><UsersRound size={20} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ChevronRight size={17} /></button><button onClick={() => setDialog('post')}><HardHat size={20} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ChevronRight size={17} /></button><button onClick={() => { setDialog(null); showToast('Admin access will be configured in the next build phase.') }}><ShieldCheck size={20} /><span><strong>Admin</strong><small>Manage the Rozgaar Setu platform</small></span><ChevronRight size={17} /></button></div><form className="dialog-form login-form" onSubmit={(event) => { event.preventDefault(); setDialog(null); showToast('Account sign-in will be connected to the API next.') }}><label>{t.name}<input name="name" autoComplete="name" required placeholder="नाम लिखें" /></label><label>{t.phone}<input name="phone" type="tel" inputMode="tel" autoComplete="tel" pattern="[0-9+() -]{8,16}" required placeholder="मोबाइल नंबर" /></label><button className="button button-primary dialog-submit" type="submit">{t.continue}<ArrowRight size={16} /></button><p className="demo-note">Demo mode: authentication and verification are not connected yet.</p></form></>}</section></div>}
+      {authOpen && <AuthDialog defaultRole={authRole === 'worker' ? 'worker' : 'employer'} onClose={() => setAuthOpen(false)} onAuthenticated={finishAuthentication} />}
       {toast && <div className="toast-message" role="status"><BadgeCheck size={17} /> {toast}</div>}
     </div>
   )
