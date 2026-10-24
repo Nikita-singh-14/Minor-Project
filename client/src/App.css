@@ -198,7 +198,21 @@
 }
 @media (max-width: 600px) {
   html, body { min-width: 360px; }
-  .site-header { min-height: 62px; grid-template-columns: minmax(140px, 1fr) auto; grid-template-rows: 62px auto; padding: 0 14px; }
+  .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto;
+  grid-template-rows: 62px auto;
+  padding: 0 14px;
+
+  background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
+}
   .brand-mark { width: 34px; height: 34px; }
   .brand-copy strong { font-size: 15px; }
   .brand-copy small { font-size: 8px; }
