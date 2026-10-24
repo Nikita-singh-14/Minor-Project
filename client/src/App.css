@@ -1,6 +1,23 @@
-.app-shell { width: 100%; overflow: hidden; }
-.site-header { min-height: 98px; display: grid; grid-template-columns: minmax(190px, 1fr) auto; grid-template-rows: 58px 40px; align-items: center; padding: 0 max(24px, calc((100vw - 1320px) / 2)); background: #fff; border-bottom: 1px solid #edf0f2; position: relative; z-index: 5; }
-.brand { display: inline-flex; align-items: center; gap: 9px; width: fit-content; }
+.app-shell {
+  width: 100%;
+  overflow-x: clip;
+}
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  min-height: 98px;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto;
+  grid-template-rows: 58px 40px;
+  align-items: center;
+
+  padding: 0 max(24px, calc((100vw - 1320px) / 2));
+
+  background: #fff;
+  border-bottom: 1px solid #edf0f2;
+}
 .brand-mark { width: 39px; height: 39px; color: var(--green); display: grid; place-items: center; position: relative; }
 .brand-mark::before, .brand-mark::after { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--orange); top: 1px; left: 17px; box-shadow: -13px 6px 0 #0872c8, 13px 6px 0 #0872c8; }
 .brand-mark::after { width: 6px; height: 6px; top: 8px; left: 4px; background: #f3b612; box-shadow: 26px 0 0 #f3b612; }
@@ -198,20 +215,13 @@
 }
 @media (max-width: 600px) {
   html, body { min-width: 360px; }
+  @media (max-width: 600px) {
   .site-header {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-
-  min-height: 62px;
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) auto;
-  grid-template-rows: 62px auto;
-  padding: 0 14px;
-
-  background: #ffffff;
-  width: 100%;
-  box-sizing: border-box;
+    min-height: 62px;
+    grid-template-columns: minmax(140px, 1fr) auto;
+    grid-template-rows: 62px auto;
+    padding: 0 14px;
+  }
 }
   .brand-mark { width: 34px; height: 34px; }
   .brand-copy strong { font-size: 15px; }
