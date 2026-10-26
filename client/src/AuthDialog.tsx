@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ArrowRight, BadgeCheck, HardHat, UsersRound, X } from 'lucide-react'
+import { apiUrl } from './api'
 
 type AccountRole = 'worker' | 'employer'
 type AuthenticatedRole = AccountRole | 'admin'
@@ -15,6 +16,8 @@ type AuthResponse = {
   developmentOtp?: string
   user?: { role: AuthenticatedRole }
 }
+
+type AuthMethod = 'email' | 'phone'
 
 async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text()
@@ -34,9 +37,12 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: AuthDialogProps) {
+  const [method, setMethod] = useState<AuthMethod>('email')
   const [purpose, setPurpose] = useState<'register' | 'login'>('login')
   const [role, setRole] = useState<AccountRole>(defaultRole)
   const [step, setStep] = useState<'details' | 'verification'>('details')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
@@ -44,12 +50,39 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  async function submitPasswordAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch(apiUrl(`/api/auth/password/${purpose}`), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          ...(purpose === 'register' ? { name, role } : {}),
+        }),
+      })
+      const payload = await readJson<AuthResponse>(response)
+      if (!response.ok || !payload.user) {
+        throw new Error(payload.error ?? (purpose === 'register' ? 'Could not create your account' : 'Could not sign in'))
+      }
+      onAuthenticated(payload.user.role)
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Could not sign in')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function requestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
     setError('')
     try {
-      const response = await fetch('/api/auth/otp/request', {
+      const response = await fetch(apiUrl('/api/auth/otp/request'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -75,7 +108,7 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
     setBusy(true)
     setError('')
     try {
-      const response = await fetch('/api/auth/otp/verify', {
+      const response = await fetch(apiUrl('/api/auth/otp/verify'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -100,15 +133,20 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
       <section className="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title">
         <button className="dialog-close icon-button" onClick={onClose} aria-label="Close dialog"><X size={19} /></button>
         <span className="dialog-icon">{role === 'employer' ? <HardHat size={22} /> : <UsersRound size={22} />}</span>
-        <span className="section-kicker">PHONE VERIFICATION</span>
+        <span className="section-kicker">{method === 'email' ? 'ACCOUNT ACCESS' : 'PHONE VERIFICATION'}</span>
         <h2 id="auth-dialog-title">{step === 'details' ? 'Sign in or create an account' : 'Enter your verification code'}</h2>
         <p className="dialog-description">
           {step === 'details'
-            ? purpose === 'register' ? 'Create an account with your mobile number.' : 'Sign in with your registered mobile number.'
+            ? purpose === 'register' ? 'Create an account to find work or hire locally.' : 'Sign in to continue to Rozgaar Setu.'
             : `We sent a verification code to ${phone}.`}
         </p>
         {step === 'details' ? (
-          <form className="dialog-form" onSubmit={requestCode}>
+          <>
+            <div className="auth-mode-switch" aria-label="Authentication method">
+              <button type="button" className={method === 'email' ? 'is-selected' : ''} onClick={() => { setMethod('email'); setError('') }}>Email & password</button>
+              <button type="button" className={method === 'phone' ? 'is-selected' : ''} onClick={() => { setMethod('phone'); setError('') }}>Phone OTP</button>
+            </div>
+            <form className="dialog-form" onSubmit={method === 'email' ? submitPasswordAuth : requestCode}>
             <div className="auth-mode-switch" aria-label="Authentication mode">
               <button type="button" className={purpose === 'login' ? 'is-selected' : ''} onClick={() => setPurpose('login')}>Sign in</button>
               <button type="button" className={purpose === 'register' ? 'is-selected' : ''} onClick={() => setPurpose('register')}>Create account</button>
@@ -124,13 +162,24 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
                 <input name="name" autoComplete="name" minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} required />
               </label>
             </>}
-            <label>Phone number
+            {method === 'email' ? <>
+              <label>Email
+                <input name="email" type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} required />
+              </label>
+              <label>Password
+                <input name="password" type="password" autoComplete={purpose === 'register' ? 'new-password' : 'current-password'} minLength={purpose === 'register' ? 10 : 1} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} required />
+              </label>
+            </> : <label>Phone number
               <input name="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" required />
-            </label>
+            </label>}
             <button className="button button-primary dialog-submit" type="submit" disabled={busy}>
-              {busy ? 'Requesting code…' : 'Send verification code'} <ArrowRight size={16} />
+              {busy
+                ? method === 'email' ? 'Please wait…' : 'Requesting code…'
+                : method === 'email' ? purpose === 'register' ? 'Create account' : 'Sign in'
+                  : 'Send verification code'} <ArrowRight size={16} />
             </button>
           </form>
+          </>
         ) : (
           <form className="dialog-form" onSubmit={verifyCode}>
             {developmentOtp && <p className="demo-note">Local development code: <strong>{developmentOtp}</strong></p>}
@@ -144,7 +193,7 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
           </form>
         )}
         {error && <p className="auth-error" role="alert">{error}</p>}
-        <p className="demo-note"><BadgeCheck size={14} /> Local OTP mode is for development only; production SMS delivery is not configured.</p>
+        {method === 'phone' && <p className="demo-note"><BadgeCheck size={14} /> Phone OTP is for local development only; production SMS delivery is not configured.</p>}
       </section>
     </div>
   )

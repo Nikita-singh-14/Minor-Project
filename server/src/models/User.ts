@@ -14,7 +14,10 @@ const workerProfileSchema = new Schema({
 }, { _id: false })
 
 const userSchema = new Schema({
-  phone: { type: String, required: true, trim: true, unique: true, maxlength: 20 },
+  phone: { type: String, trim: true, unique: true, sparse: true, maxlength: 20 },
+  email: { type: String, trim: true, lowercase: true, unique: true, sparse: true, maxlength: 254 },
+  passwordHash: { type: String, select: false },
+  passwordSalt: { type: String, select: false },
   name: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
   role: { type: String, required: true, enum: userRoles, index: true },
   verificationStatus: {

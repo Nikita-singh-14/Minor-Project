@@ -3,6 +3,7 @@ dist/
 .env
 .env.*
 !.env.example
+!client/.env.production
 coverage/
 *.tsbuildinfo
 client/.vite/

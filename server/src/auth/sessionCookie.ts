@@ -5,7 +5,9 @@ export const SESSION_COOKIE_NAME = 'rozgaar_session'
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 
 function cookieAttributes() {
-  return `Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
+  const sameSite = process.env.NODE_ENV === 'production' ? 'None' : 'Lax'
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+  return `Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${SESSION_TTL_SECONDS}${secure}`
 }
 
 export function readSessionCookie(request: Request) {
@@ -22,8 +24,10 @@ export function setSessionCookie(response: Response, token: string) {
 }
 
 export function clearSessionCookie(response: Response) {
+  const sameSite = process.env.NODE_ENV === 'production' ? 'None' : 'Lax'
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
   response.setHeader(
     'Set-Cookie',
-    `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`,
+    `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${secure}`,
   )
 }

@@ -27,6 +27,18 @@ const requestOtpSchema = z.object({
   role: z.enum(['worker', 'employer']).optional(),
 }).strict()
 
+const passwordRegistrationSchema = z.object({
+  email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(10).max(128),
+  name: z.string().trim().min(2).max(100),
+  role: z.enum(['worker', 'employer']),
+}).strict()
+
+const passwordLoginSchema = z.object({
+  email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(1).max(128),
+}).strict()
+
 const verifyOtpSchema = z.object({
   phone: z.string().trim().min(10).max(16),
   code: z.string().regex(/^\d{6}$/),
@@ -46,9 +58,109 @@ function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }
 
+async function hashPassword(password: string, salt: Buffer) {
+  return Buffer.from(await scrypt(password, salt, 64) as Buffer)
+}
+
 function isDuplicateKeyError(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000
 }
+
+router.post('/password/register', async (request, response, next) => {
+  const parsed = passwordRegistrationSchema.safeParse(request.body)
+  if (!parsed.success) {
+    response.status(400).json({ error: 'Enter a valid email, a password of at least 10 characters, your name, and account type' })
+    return
+  }
+
+  try {
+    const existingUser = await UserModel.findOne({ email: parsed.data.email }).select('_id').lean()
+    if (existingUser) {
+      response.status(409).json({ error: 'An account already exists for this email. Please sign in instead.' })
+      return
+    }
+
+    const salt = randomBytes(16)
+    const passwordHash = await hashPassword(parsed.data.password, salt)
+    let user
+    try {
+      user = await UserModel.create({
+        email: parsed.data.email,
+        passwordHash: passwordHash.toString('hex'),
+        passwordSalt: salt.toString('hex'),
+        name: parsed.data.name,
+        role: parsed.data.role,
+        verificationStatus: 'unverified',
+        accountStatus: 'active',
+      })
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        response.status(409).json({ error: 'An account already exists for this email. Please sign in instead.' })
+        return
+      }
+      throw error
+    }
+
+    const token = randomBytes(32).toString('base64url')
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+    await AuthSessionModel.create({
+      userId: user._id,
+      tokenHash: hashToken(token),
+      expiresAt,
+    })
+    setSessionCookie(response, token)
+
+    response.status(201).json({
+      expiresAt: expiresAt.toISOString(),
+      user: { id: user._id.toString(), name: user.name, email: user.email, role: user.role },
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/password/login', async (request, response, next) => {
+  const parsed = passwordLoginSchema.safeParse(request.body)
+  if (!parsed.success) {
+    response.status(400).json({ error: 'Enter a valid email and password' })
+    return
+  }
+
+  try {
+    const user = await UserModel.findOne({ email: parsed.data.email })
+      .select('+passwordHash +passwordSalt')
+    const salt = user?.passwordSalt ? Buffer.from(user.passwordSalt, 'hex') : randomBytes(16)
+    const suppliedHash = await hashPassword(parsed.data.password, salt)
+    const storedHash = user?.passwordHash ? Buffer.from(user.passwordHash, 'hex') : Buffer.alloc(0)
+    const passwordMatches = storedHash.length > 0
+      && suppliedHash.length === storedHash.length
+      && timingSafeEqual(suppliedHash, storedHash)
+    if (!user || !passwordMatches) {
+      response.status(401).json({ error: 'Invalid email or password' })
+      return
+    }
+    if (user.accountStatus !== 'active') {
+      response.status(403).json({ error: 'This account is unavailable' })
+      return
+    }
+
+    const token = randomBytes(32).toString('base64url')
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+    await AuthSessionModel.create({
+      userId: user._id,
+      tokenHash: hashToken(token),
+      expiresAt,
+    })
+    setSessionCookie(response, token)
+
+    response.json({
+      expiresAt: expiresAt.toISOString(),
+      user: { id: user._id.toString(), name: user.name, email: user.email, role: user.role },
+    })
+  } catch (error) {
+    next(error)
+  }
+})
 
 router.post('/otp/request', async (request, response, next) => {
   const parsed = requestOtpSchema.safeParse(request.body)

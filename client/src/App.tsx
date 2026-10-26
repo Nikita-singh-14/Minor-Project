@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import AuthDialog from './AuthDialog'
+import { apiUrl } from './api'
 import './App.css'
 
 type Category = { id: string; en: string; hi: string; icon: LucideIcon; tone: string }
@@ -161,7 +162,7 @@ function App() {
     let cancelled = false
     async function restoreSession() {
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' })
+        const response = await fetch(apiUrl('/api/auth/me'), { credentials: 'include' })
         if (response.status === 401) return
         if (!response.ok) throw new Error('Could not restore your session')
         const payload = await readJson<{ user?: { role?: Role } }>(response)
@@ -205,7 +206,7 @@ function App() {
       setLoadingJobs(true)
       try {
         const params = new URLSearchParams({ city: location, page: '1', limit: '12' })
-        const response = await fetch(`/api/jobs?${params.toString()}`)
+        const response = await fetch(apiUrl(`/api/jobs?${params.toString()}`))
         if (!response.ok) {
           throw new Error('Failed to load jobs')
         }
@@ -233,7 +234,7 @@ function App() {
       }
 
       try {
-        const response = await fetch('/api/applications/me', {
+        const response = await fetch(apiUrl('/api/applications/me'), {
           credentials: 'include',
         })
         if (!response.ok) {
@@ -257,7 +258,7 @@ function App() {
       }
 
       try {
-        const response = await fetch('/api/employer/jobs', {
+        const response = await fetch(apiUrl('/api/employer/jobs'), {
           credentials: 'include',
         })
         if (!response.ok) {
@@ -294,7 +295,7 @@ function App() {
   async function signOut() {
     let revokeFailed = false
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await fetch(apiUrl('/api/auth/logout'), {
         method: 'POST',
         credentials: 'include',
       })
@@ -319,7 +320,7 @@ function App() {
     if (asExisting) return
 
     try {
-      const response = await fetch(`/api/jobs/${jobId}/applications`, {
+      const response = await fetch(apiUrl(`/api/jobs/${jobId}/applications`), {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -376,7 +377,7 @@ function App() {
     }
 
     try {
-      const response = await fetch('/api/jobs', {
+      const response = await fetch(apiUrl('/api/jobs'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
