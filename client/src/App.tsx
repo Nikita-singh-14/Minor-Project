@@ -32,6 +32,23 @@ type Dialog = 'worker' | 'employer' | 'admin' | 'post' | null
 
 type Role = 'worker' | 'employer' | 'admin'
 
+async function readJson<T>(response: Response): Promise<T> {
+  const text = await response.text()
+  if (!text.trim()) {
+    return {} as T
+  }
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 140)
+    if (snippet.startsWith('<') || /The page|Could not find|not found/i.test(snippet)) {
+      throw new Error('The service is temporarily unavailable. Please try again later.')
+    }
+    throw new Error('Unexpected response from the server.')
+  }
+}
+
 type BackendJob = {
   _id?: string
   title: string
@@ -147,7 +164,7 @@ function App() {
         const response = await fetch('/api/auth/me', { credentials: 'include' })
         if (response.status === 401) return
         if (!response.ok) throw new Error('Could not restore your session')
-        const payload = await response.json() as { user?: { role?: Role } }
+        const payload = await readJson<{ user?: { role?: Role } }>(response)
         if (payload.user?.role === 'worker' || payload.user?.role === 'employer' || payload.user?.role === 'admin') {
           if (!cancelled) setAuthRole(payload.user.role)
         }
@@ -192,7 +209,7 @@ function App() {
         if (!response.ok) {
           throw new Error('Failed to load jobs')
         }
-        const payload = await response.json() as { jobs?: BackendJob[] }
+        const payload = await readJson<{ jobs?: BackendJob[] }>(response)
         const nextJobs = (payload.jobs ?? []).map(mapJob)
         if (nextJobs.length) {
           setJobs(nextJobs)
@@ -222,7 +239,7 @@ function App() {
         if (!response.ok) {
           throw new Error('Could not load your applications')
         }
-        const payload = await response.json() as { applications?: WorkerApplication[] }
+        const payload = await readJson<{ applications?: WorkerApplication[] }>(response)
         setWorkerApplications(payload.applications ?? [])
       } catch {
         setWorkerApplications([])
@@ -246,7 +263,7 @@ function App() {
         if (!response.ok) {
           throw new Error('Could not load employer jobs')
         }
-        const payload = await response.json() as { jobs?: EmployerJobSummary[] }
+        const payload = await readJson<{ jobs?: EmployerJobSummary[] }>(response)
         setEmployerJobs(payload.jobs ?? [])
       } catch {
         setEmployerJobs([])
@@ -310,7 +327,7 @@ function App() {
         },
       })
 
-      const payload = await response.json().catch(() => ({})) as { error?: string }
+      const payload = await readJson<{ error?: string }>(response).catch(() => ({} as { error?: string }))
       if (!response.ok) {
         throw new Error(payload.error ?? 'Unable to submit application')
       }
@@ -373,7 +390,7 @@ function App() {
         }),
       })
 
-      const payload = await response.json().catch(() => ({})) as { job?: BackendJob; error?: string }
+      const payload = await readJson<{ job?: BackendJob; error?: string }>(response).catch(() => ({} as { job?: BackendJob; error?: string }))
       if (!response.ok) {
         throw new Error(payload.error ?? 'Unable to publish job')
       }

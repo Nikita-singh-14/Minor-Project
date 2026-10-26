@@ -16,6 +16,23 @@ type AuthResponse = {
   user?: { role: AuthenticatedRole }
 }
 
+async function readJson<T>(response: Response): Promise<T> {
+  const text = await response.text()
+  if (!text.trim()) {
+    return {} as T
+  }
+
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 140)
+    if (snippet.startsWith('<') || /The page|Could not find|not found/i.test(snippet)) {
+      throw new Error('The service is temporarily unavailable. Please try again later.')
+    }
+    throw new Error(`Unexpected response from the server: ${snippet}`)
+  }
+}
+
 export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: AuthDialogProps) {
   const [purpose, setPurpose] = useState<'register' | 'login'>('login')
   const [role, setRole] = useState<AccountRole>(defaultRole)
@@ -42,7 +59,7 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
           ...(purpose === 'register' ? { name, role } : {}),
         }),
       })
-      const payload = await response.json() as AuthResponse
+      const payload = await readJson<AuthResponse>(response)
       if (!response.ok) throw new Error(payload.error ?? 'Could not request a verification code')
       setDevelopmentOtp(payload.developmentOtp ?? '')
       setStep('verification')
@@ -64,7 +81,7 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code }),
       })
-      const payload = await response.json() as AuthResponse
+      const payload = await readJson<AuthResponse>(response)
       if (!response.ok || !payload.user) {
         throw new Error(payload.error ?? 'Could not verify the code')
       }
