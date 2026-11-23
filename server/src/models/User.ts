@@ -8,9 +8,12 @@ const preferredLocationSchema = new Schema({
 }, { _id: false })
 
 const workerProfileSchema = new Schema({
+  bio: { type: String, trim: true, maxlength: 1000, default: '' },
   skills: [{ type: String, trim: true, maxlength: 60 }],
   experienceYears: { type: Number, min: 0, max: 60 },
   preferredLocations: { type: [preferredLocationSchema], default: [] },
+  isVisible: { type: Boolean, default: false },
+  contactVisible: { type: Boolean, default: false },
 }, { _id: false })
 
 const userSchema = new Schema({
@@ -34,6 +37,8 @@ const userSchema = new Schema({
   },
   workerProfile: { type: workerProfileSchema },
 }, { timestamps: true })
+
+userSchema.index({ role: 1, accountStatus: 1, 'workerProfile.isVisible': 1, 'workerProfile.preferredLocations.city': 1 })
 
 export type UserRecord = InferSchemaType<typeof userSchema>
 export type UserRole = typeof userRoles[number]

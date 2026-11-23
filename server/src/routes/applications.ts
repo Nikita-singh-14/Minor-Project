@@ -50,7 +50,7 @@ router.get('/employer/jobs', authenticate, requireRole('employer'), async (reque
     const jobs = await JobModel.find({ employerId }).sort({ createdAt: -1 }).lean()
     const jobIds = jobs.map((job) => job._id)
     const applications = await ApplicationModel.find({ jobId: { $in: jobIds } })
-      .populate('workerId', 'name phone role workerProfile')
+      .populate('workerId', 'name role workerProfile')
       .sort({ createdAt: -1 })
       .lean()
 
@@ -153,7 +153,7 @@ router.get('/jobs/:jobId/applications', authenticate, requireRole('employer'), a
     }
 
     const applications = await ApplicationModel.find({ jobId })
-      .populate('workerId', 'name phone role workerProfile')
+      .populate('workerId', 'name role workerProfile')
       .sort({ createdAt: -1 })
       .lean()
 
@@ -191,20 +191,36 @@ router.patch('/jobs/:jobId/applications/:applicationId', authenticate, requireRo
       return
     }
 
-    const application = await ApplicationModel.findOne({ _id: applicationId, jobId }).lean()
+    const application = await ApplicationModel.findOne({ _id: applicationId, jobId })
+      .select('status')
+      .lean()
     if (!application) {
       response.status(404).json({ error: 'Application not found' })
       return
     }
 
-    application.status = parsed.data.status
-    const updated = await ApplicationModel.findByIdAndUpdate(
-      applicationId,
+    if (application.status === 'accepted' || application.status === 'rejected') {
+      if (application.status !== parsed.data.status) {
+        response.status(409).json({ error: 'A final application decision cannot be changed' })
+        return
+      }
+
+      response.json({ application: { id: applicationId, status: application.status } })
+      return
+    }
+
+    const updated = await ApplicationModel.findOneAndUpdate(
+      { _id: applicationId, jobId, status: { $in: ['submitted', 'reviewed'] } },
       { $set: { status: parsed.data.status } },
-      { new: true },
+      { new: true, runValidators: true },
     )
 
-    response.json({ application: { id: updated?._id.toString(), status: updated?.status ?? parsed.data.status } })
+    if (!updated) {
+      response.status(409).json({ error: 'Application status changed; refresh and try again' })
+      return
+    }
+
+    response.json({ application: { id: updated._id.toString(), status: updated.status } })
   } catch (error) {
     next(error)
   }

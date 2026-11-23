@@ -4,6 +4,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { clearSessionCookie, readSessionCookie, setSessionCookie } from '../auth/sessionCookie.js'
 import { authenticate } from '../middleware/authenticate.js'
+import { requireDatabase } from '../middleware/requireDatabase.js'
 import { AuthSessionModel } from '../models/AuthSession.js'
 import { OtpChallengeModel } from '../models/OtpChallenge.js'
 import { UserModel } from '../models/User.js'
@@ -66,7 +67,7 @@ function isDuplicateKeyError(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000
 }
 
-router.post('/password/register', async (request, response, next) => {
+router.post('/password/register', requireDatabase, async (request, response, next) => {
   const parsed = passwordRegistrationSchema.safeParse(request.body)
   if (!parsed.success) {
     response.status(400).json({ error: 'Enter a valid email, a password of at least 10 characters, your name, and account type' })
@@ -119,7 +120,7 @@ router.post('/password/register', async (request, response, next) => {
   }
 })
 
-router.post('/password/login', async (request, response, next) => {
+router.post('/password/login', requireDatabase, async (request, response, next) => {
   const parsed = passwordLoginSchema.safeParse(request.body)
   if (!parsed.success) {
     response.status(400).json({ error: 'Enter a valid email and password' })
@@ -162,7 +163,7 @@ router.post('/password/login', async (request, response, next) => {
   }
 })
 
-router.post('/otp/request', async (request, response, next) => {
+router.post('/otp/request', requireDatabase, async (request, response, next) => {
   const parsed = requestOtpSchema.safeParse(request.body)
   if (!parsed.success) {
     response.status(400).json({ error: 'Invalid OTP request', details: parsed.error.flatten() })
@@ -250,7 +251,7 @@ router.post('/otp/request', async (request, response, next) => {
   }
 })
 
-router.post('/otp/verify', async (request, response, next) => {
+router.post('/otp/verify', requireDatabase, async (request, response, next) => {
   const parsed = verifyOtpSchema.safeParse(request.body)
   if (!parsed.success) {
     response.status(400).json({ error: 'Invalid OTP verification request', details: parsed.error.flatten() })
@@ -344,7 +345,13 @@ router.get('/me', authenticate, (request, response) => {
   response.json({ user: request.authUser })
 })
 
-router.post('/logout', async (request, response, next) => {
+router.post('/logout', (request, response, next) => {
+  if (readSessionCookie(request)) {
+    requireDatabase(request, response, next)
+    return
+  }
+  next()
+}, async (request, response, next) => {
   try {
     const token = readSessionCookie(request)
     if (token) {

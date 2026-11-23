@@ -81,6 +81,8 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
     event.preventDefault()
     setBusy(true)
     setError('')
+    setCode('')
+    setDevelopmentOtp('')
     try {
       const response = await fetch(apiUrl('/api/auth/otp/request'), {
         method: 'POST',
@@ -142,49 +144,51 @@ export default function AuthDialog({ defaultRole, onClose, onAuthenticated }: Au
         </p>
         {step === 'details' ? (
           <>
-            <div className="auth-mode-switch" aria-label="Authentication method">
-              <button type="button" className={method === 'email' ? 'is-selected' : ''} onClick={() => { setMethod('email'); setError('') }}>Email & password</button>
-              <button type="button" className={method === 'phone' ? 'is-selected' : ''} onClick={() => { setMethod('phone'); setError('') }}>Phone OTP</button>
+            <div className="auth-controls">
+              <div className="auth-mode-switch" aria-label="Authentication method">
+                <button type="button" className={method === 'email' ? 'is-selected' : ''} onClick={() => { setMethod('email'); setError('') }} disabled={busy}>Email & password</button>
+                <button type="button" className={method === 'phone' ? 'is-selected' : ''} onClick={() => { setMethod('phone'); setError('') }} disabled={busy}>Phone OTP</button>
+              </div>
+              <div className="auth-mode-switch" aria-label="Authentication mode">
+                <button type="button" className={purpose === 'login' ? 'is-selected' : ''} onClick={() => { setPurpose('login'); setError('') }} disabled={busy}>Sign in</button>
+                <button type="button" className={purpose === 'register' ? 'is-selected' : ''} onClick={() => { setPurpose('register'); setError('') }} disabled={busy}>Create account</button>
+              </div>
             </div>
             <form className="dialog-form" onSubmit={method === 'email' ? submitPasswordAuth : requestCode}>
-            <div className="auth-mode-switch" aria-label="Authentication mode">
-              <button type="button" className={purpose === 'login' ? 'is-selected' : ''} onClick={() => setPurpose('login')}>Sign in</button>
-              <button type="button" className={purpose === 'register' ? 'is-selected' : ''} onClick={() => setPurpose('register')}>Create account</button>
-            </div>
-            {purpose === 'register' && <>
-              <label>Your account type
-                <select value={role} onChange={(event) => setRole(event.target.value === 'employer' ? 'employer' : 'worker')}>
-                  <option value="worker">Worker</option>
-                  <option value="employer">Employer</option>
-                </select>
-              </label>
-              <label>Your name
-                <input name="name" autoComplete="name" minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} required />
-              </label>
-            </>}
-            {method === 'email' ? <>
-              <label>Email
-                <input name="email" type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} required />
-              </label>
-              <label>Password
-                <input name="password" type="password" autoComplete={purpose === 'register' ? 'new-password' : 'current-password'} minLength={purpose === 'register' ? 10 : 1} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} required />
-              </label>
-            </> : <label>Phone number
-              <input name="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" required />
-            </label>}
-            <button className="button button-primary dialog-submit" type="submit" disabled={busy}>
-              {busy
-                ? method === 'email' ? 'Please wait…' : 'Requesting code…'
-                : method === 'email' ? purpose === 'register' ? 'Create account' : 'Sign in'
-                  : 'Send verification code'} <ArrowRight size={16} />
-            </button>
-          </form>
+              {purpose === 'register' && <>
+                <label>Your account type
+                  <select value={role} onChange={(event) => setRole(event.target.value === 'employer' ? 'employer' : 'worker')}>
+                    <option value="worker">Worker</option>
+                    <option value="employer">Employer</option>
+                  </select>
+                </label>
+                <label>Your name
+                  <input name="name" autoComplete="name" minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} required />
+                </label>
+              </>}
+              {method === 'email' ? <>
+                <label>Email
+                  <input name="email" type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} required />
+                </label>
+                <label>Password
+                  <input name="password" type="password" autoComplete={purpose === 'register' ? 'new-password' : 'current-password'} minLength={purpose === 'register' ? 10 : 1} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} required />
+                </label>
+              </> : <label>Phone number
+                <input name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={16} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" required />
+              </label>}
+              <button className="button button-primary dialog-submit" type="submit" disabled={busy}>
+                {busy
+                  ? method === 'email' ? 'Please wait…' : 'Requesting code…'
+                  : method === 'email' ? purpose === 'register' ? 'Create account' : 'Sign in'
+                    : 'Send verification code'} <ArrowRight size={16} />
+              </button>
+            </form>
           </>
         ) : (
           <form className="dialog-form" onSubmit={verifyCode}>
             {developmentOtp && <p className="demo-note">Local development code: <strong>{developmentOtp}</strong></p>}
             <label>6-digit code
-              <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value)} required />
+              <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required />
             </label>
             <button className="button button-primary dialog-submit" type="submit" disabled={busy}>
               {busy ? 'Verifying…' : 'Verify and continue'} <ArrowRight size={16} />

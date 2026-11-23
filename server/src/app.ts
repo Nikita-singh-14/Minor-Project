@@ -5,6 +5,7 @@ import mongoose from 'mongoose'
 import authRouter from './routes/auth.js'
 import jobsRouter from './routes/jobs.js'
 import applicationsRouter from './routes/applications.js'
+import workersRouter from './routes/workers.js'
 
 const app = express()
 const clientOrigin = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173'
@@ -23,8 +24,6 @@ app.use((request, response, next) => {
   next()
 })
 app.use(express.json({ limit: '32kb' }))
-app.use('/api/auth', authRouter)
-app.use('/api', applicationsRouter)
 
 app.get('/api/health', (_request, response) => {
   response.json({
@@ -35,6 +34,9 @@ app.get('/api/health', (_request, response) => {
   })
 })
 
+app.use('/api/auth', authRouter)
+app.use('/api', applicationsRouter)
+app.use('/api/workers', workersRouter)
 app.use('/api/jobs', jobsRouter)
 
 app.use((_request, response) => {

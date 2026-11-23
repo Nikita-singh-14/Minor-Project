@@ -23,12 +23,14 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import AuthDialog from './AuthDialog'
+import EmployerDashboard from './EmployerDashboard'
+import WorkerDirectory from './WorkerDirectory'
+import WorkerProfileEditor from './WorkerProfileEditor'
 import { apiUrl } from './api'
 import './App.css'
 
 type Category = { id: string; en: string; hi: string; icon: LucideIcon; tone: string }
 type Job = { id: string; role: string; employer: string; place: string; pay: number; unit: string; posted: string; category: string; distance: string }
-type Worker = { name: string; role: string; rating: string; reviews: number; experience: string; distance: string; image: string; category: string }
 type Dialog = 'worker' | 'employer' | 'admin' | 'post' | null
 
 type Role = 'worker' | 'employer' | 'admin'
@@ -75,20 +77,6 @@ type WorkerApplication = {
   }
 }
 
-type EmployerJobSummary = {
-  _id?: string
-  title?: string
-  employerName?: string
-  status?: string
-  applicantSummary?: { submitted?: number; reviewed?: number; accepted?: number; rejected?: number }
-  applications?: Array<{
-    _id?: string
-    status?: string
-    createdAt?: string
-    workerId?: { name?: string; phone?: string; role?: string }
-  }>
-}
-
 const categories: Category[] = [
   { id: 'construction', en: 'Construction', hi: 'निर्माण कार्य', icon: Hammer, tone: 'peach' },
   { id: 'electrician', en: 'Electrician', hi: 'इलेक्ट्रीशियन', icon: Plug, tone: 'mint' },
@@ -107,13 +95,6 @@ const jobsSeed: Job[] = [
   { id: 'job-4', role: 'Office cleaning staff', employer: 'City Care Services', place: 'Sakri, Bilaspur', pay: 600, unit: 'day', posted: '2 days ago', category: 'cleaning', distance: '4.2 km' },
 ]
 
-const workers: Worker[] = [
-  { name: 'Ramesh Kumar', role: 'Mason', rating: '4.8', reviews: 56, experience: '5 years', distance: '2.3 km', image: 'photo-1500648767791-00dcc994a43e', category: 'construction' },
-  { name: 'Suresh Yadav', role: 'Electrician', rating: '4.6', reviews: 32, experience: '4 years', distance: '3.1 km', image: 'photo-1506794778202-cad84cf45f1d', category: 'electrician' },
-  { name: 'Imran Khan', role: 'Plumber', rating: '4.7', reviews: 41, experience: '6 years', distance: '2.8 km', image: 'photo-1507003211169-0a1dd7228f2d', category: 'plumber' },
-  { name: 'Rekha Sahu', role: 'Home helper', rating: '4.5', reviews: 28, experience: '3 years', distance: '1.9 km', image: 'photo-1534528741775-53994a69daeb', category: 'helper' },
-]
-
 const copy = {
   en: {
     home: 'Home', jobs: 'Find Jobs', workers: 'Find Workers', how: 'How It Works', about: 'About', help: 'Help',
@@ -123,7 +104,7 @@ const copy = {
     popular: 'Popular categories', allCategories: 'All categories', nearby: 'Jobs near you', allJobs: 'View all jobs', available: 'Available workers', allWorkers: 'View all workers',
     availableBadge: 'Available', apply: 'Apply', perDay: '/ day', statsTitle: 'New opportunities across India', statsWorkers: 'Registered workers', statsJobs: 'Jobs posted', statsTowns: 'Towns & cities', rating: 'Average rating',
     safe: 'Safe & verified', local: 'Your neighbourhood', simple: 'Easy for everyone', postTitle: 'Post work', close: 'Close dialog', roleTitle: 'Welcome to Rozgaar Setu',
-    roleSub: 'Choose how you want to get started.', createAccount: 'Continue as', name: 'Your name', phone: 'Phone number', continue: 'Continue', postHeading: 'Post a local job', jobTitle: 'Job title', category: 'Category', pay: 'Pay per day (₹)', area: 'Area', publish: 'Publish job', posted: 'Your job has been added to the live listings.', applied: 'Application saved for this demo.', noResults: 'No matching listings. Try a different search or category.',
+    roleSub: 'Choose how you want to get started.', createAccount: 'Continue as', name: 'Your name', phone: 'Phone number', continue: 'Continue', postHeading: 'Post a local job', jobTitle: 'Job title', category: 'Category', pay: 'Pay per day (₹)', area: 'Area', publish: 'Publish job', posted: 'Your job has been added to the live listings.',     applied: 'Your application has been submitted.', noResults: 'No matching listings. Try a different search or category.',
   },
   hi: {
     home: 'होम', jobs: 'काम खोजें', workers: 'कामगार खोजें', how: 'कैसे काम करता है', about: 'हमारे बारे में', help: 'मदद',
@@ -133,7 +114,7 @@ const copy = {
     popular: 'लोकप्रिय श्रेणियां', allCategories: 'सभी श्रेणियां', nearby: 'आपके पास के काम', allJobs: 'सभी काम देखें', available: 'उपलब्ध कामगार', allWorkers: 'सभी कामगार देखें',
     availableBadge: 'उपलब्ध', apply: 'आवेदन करें', perDay: '/ दिन', statsTitle: 'पूरे भारत में नए अवसर', statsWorkers: 'पंजीकृत कामगार', statsJobs: 'पोस्ट किए काम', statsTowns: 'शहरों में उपलब्ध', rating: 'औसत रेटिंग',
     safe: 'सुरक्षित और भरोसेमंद', local: 'आपके आसपास', simple: 'सबके लिए आसान', postTitle: 'काम पोस्ट करें', close: 'डायलॉग बंद करें', roleTitle: 'Rozgaar Setu में आपका स्वागत है',
-    roleSub: 'शुरू करने का तरीका चुनें।', createAccount: 'जारी रखें', name: 'आपका नाम', phone: 'फोन नंबर', continue: 'आगे बढ़ें', postHeading: 'स्थानीय काम पोस्ट करें', jobTitle: 'काम का नाम', category: 'श्रेणी', pay: 'रोज़ की मज़दूरी (₹)', area: 'इलाका', publish: 'काम पोस्ट करें', posted: 'आपका काम लाइव सूची में जोड़ दिया गया है।', applied: 'डेमो के लिए आपका आवेदन सेव हो गया है।', noResults: 'कोई काम नहीं मिला। दूसरी खोज या श्रेणी चुनें।',
+    roleSub: 'शुरू करने का तरीका चुनें।', createAccount: 'जारी रखें', name: 'आपका नाम', phone: 'फोन नंबर', continue: 'आगे बढ़ें', postHeading: 'स्थानीय काम पोस्ट करें', jobTitle: 'काम का नाम', category: 'श्रेणी', pay: 'रोज़ की मज़दूरी (₹)', area: 'इलाका', publish: 'काम पोस्ट करें', posted: 'आपका काम लाइव सूची में जोड़ दिया गया है।', applied: 'आपका आवेदन भेज दिया गया है।', noResults: 'कोई काम नहीं मिला। दूसरी खोज या श्रेणी चुनें।',
   },
 }
 
@@ -142,18 +123,17 @@ function App() {
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('Bilaspur')
   const [activeCategory, setActiveCategory] = useState('all')
-  const [role, setRole] = useState<Role>('worker')
   const [jobs, setJobs] = useState<Job[]>(jobsSeed)
-  const [applied, setApplied] = useState<string[]>(() => JSON.parse(localStorage.getItem('rozgaar-applications') ?? '[]') as string[])
   const [dialog, setDialog] = useState<Dialog>(null)
   const [toast, setToast] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [loadingJobs, setLoadingJobs] = useState(false)
   const [workerApplications, setWorkerApplications] = useState<WorkerApplication[]>([])
-  const [employerJobs, setEmployerJobs] = useState<EmployerJobSummary[]>([])
+  const [employerDashboardRefresh, setEmployerDashboardRefresh] = useState(0)
   const [authRole, setAuthRole] = useState<Role | null>(null)
   const [authOpen, setAuthOpen] = useState(false)
   const t = copy[language]
+  const appliedJobIds = useMemo(() => new Set(workerApplications.map((application) => application.jobId?._id).filter((id): id is string => Boolean(id))), [workerApplications])
 
   useEffect(() => {
     localStorage.removeItem('rozgaar-auth-token')
@@ -202,6 +182,7 @@ function App() {
   }
 
   useEffect(() => {
+    let cancelled = false
     async function loadJobs() {
       setLoadingJobs(true)
       try {
@@ -212,21 +193,23 @@ function App() {
         }
         const payload = await readJson<{ jobs?: BackendJob[] }>(response)
         const nextJobs = (payload.jobs ?? []).map(mapJob)
-        if (nextJobs.length) {
-          setJobs(nextJobs)
-        }
+        if (!cancelled) setJobs(nextJobs)
       } catch {
-        setJobs(jobsSeed)
-        showToast('Using local demo jobs while the API is offline.')
+        if (!cancelled) {
+          setJobs(jobsSeed)
+          showToast('Using local demo jobs while the API is offline.')
+        }
       } finally {
-        setLoadingJobs(false)
+        if (!cancelled) setLoadingJobs(false)
       }
     }
 
     void loadJobs()
+    return () => { cancelled = true }
   }, [location])
 
   useEffect(() => {
+    let cancelled = false
     async function loadWorkerApplications() {
       if (authRole !== 'worker') {
         setWorkerApplications([])
@@ -241,44 +224,20 @@ function App() {
           throw new Error('Could not load your applications')
         }
         const payload = await readJson<{ applications?: WorkerApplication[] }>(response)
-        setWorkerApplications(payload.applications ?? [])
+        if (!cancelled) setWorkerApplications(payload.applications ?? [])
       } catch {
-        setWorkerApplications([])
+        if (!cancelled) setWorkerApplications([])
       }
     }
 
     void loadWorkerApplications()
-  }, [authRole])
-
-  useEffect(() => {
-    async function loadEmployerJobs() {
-      if (authRole !== 'employer') {
-        setEmployerJobs([])
-        return
-      }
-
-      try {
-        const response = await fetch(apiUrl('/api/employer/jobs'), {
-          credentials: 'include',
-        })
-        if (!response.ok) {
-          throw new Error('Could not load employer jobs')
-        }
-        const payload = await readJson<{ jobs?: EmployerJobSummary[] }>(response)
-        setEmployerJobs(payload.jobs ?? [])
-      } catch {
-        setEmployerJobs([])
-      }
-    }
-
-    void loadEmployerJobs()
+    return () => { cancelled = true }
   }, [authRole])
 
   const visibleJobs = useMemo(() => jobs.filter((job) => {
     const matchesQuery = `${job.role} ${job.employer} ${job.place} ${job.category}`.toLowerCase().includes(query.toLowerCase())
     return matchesQuery && (activeCategory === 'all' || job.category === activeCategory)
   }), [activeCategory, jobs, query])
-  const visibleWorkers = useMemo(() => workers.filter((worker) => activeCategory === 'all' || worker.category === activeCategory), [activeCategory])
 
   function showToast(message: string) {
     setToast(message)
@@ -287,7 +246,6 @@ function App() {
 
   function finishAuthentication(authenticatedRole: Role) {
     setAuthRole(authenticatedRole)
-    setRole(authenticatedRole)
     setAuthOpen(false)
     showToast(`Signed in as ${authenticatedRole}.`)
   }
@@ -305,7 +263,7 @@ function App() {
     }
 
     setAuthRole(null)
-    setRole('worker')
+    setWorkerApplications([])
     showToast(revokeFailed ? 'Signed out on this device; server session revocation could not be confirmed.' : 'Signed out.')
   }
 
@@ -316,8 +274,7 @@ function App() {
       return
     }
 
-    const asExisting = applied.includes(jobId)
-    if (asExisting) return
+    if (appliedJobIds.has(jobId)) return
 
     try {
       const response = await fetch(apiUrl(`/api/jobs/${jobId}/applications`), {
@@ -328,25 +285,24 @@ function App() {
         },
       })
 
-      const payload = await readJson<{ error?: string }>(response).catch(() => ({} as { error?: string }))
-      if (!response.ok) {
+      const payload = await readJson<{ error?: string; application?: { id: string; status: WorkerApplication['status'] } }>(response)
+      if (!response.ok || !payload.application) {
         throw new Error(payload.error ?? 'Unable to submit application')
       }
 
-      const next = [...applied, jobId]
-      setApplied(next)
-      localStorage.setItem('rozgaar-applications', JSON.stringify(next))
+      const submittedApplication = payload.application
+      const job = jobs.find((item) => item.id === jobId)
       setWorkerApplications((current) => [{
-        _id: `${Date.now()}`,
-        status: 'submitted',
+        _id: submittedApplication.id,
+        status: submittedApplication.status,
         createdAt: new Date().toISOString(),
         jobId: {
           _id: jobId,
-          title: jobs.find((job) => job.id === jobId)?.role ?? 'Applied job',
-          employerName: jobs.find((job) => job.id === jobId)?.employer ?? 'Employer',
-          category: jobs.find((job) => job.id === jobId)?.category ?? 'general',
-          payPerDay: jobs.find((job) => job.id === jobId)?.pay ?? 0,
-          location: { city: location, area: jobs.find((job) => job.id === jobId)?.place ?? location },
+          title: job?.role ?? 'Applied job',
+          employerName: job?.employer ?? 'Employer',
+          category: job?.category ?? 'general',
+          payPerDay: job?.pay ?? 0,
+          location: { city: location, area: job?.place ?? location },
         },
       }, ...current])
       showToast(t.applied)
@@ -409,6 +365,7 @@ function App() {
       }
 
       setJobs((current) => [createdJob, ...current])
+      setEmployerDashboardRefresh((current) => current + 1)
       setActiveCategory('all')
       setQuery('')
       setDialog(null)
@@ -455,18 +412,6 @@ function App() {
               <button className="role-button role-worker" onClick={() => setAuthOpen(true)}><UsersRound size={25} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
               <button className="role-button role-employer" onClick={() => { if (authRole === 'employer') setDialog('post'); else if (authRole === 'worker') showToast('An employer account is required to post jobs.'); else setAuthOpen(true) }}><HardHat size={25} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
             </div>
-            <div className="role-switcher" aria-label="Choose dashboard role">
-              {(['worker', 'employer', 'admin'] as Role[]).map((entry) => (
-                <button
-                  key={entry}
-                  type="button"
-                  className={entry === role ? 'is-selected' : ''}
-                  onClick={() => setRole(entry)}
-                >
-                  {entry === 'worker' ? 'Worker' : entry === 'employer' ? 'Employer' : 'Admin'}
-                </button>
-              ))}
-            </div>
             <div className="trust-row"><span><ShieldCheck size={17} /> {t.safe}</span><span><MapPin size={17} /> {t.local}</span><span><UsersRound size={17} /> {t.simple}</span></div>
           </div>
           <div className="hero-image" role="img" aria-label="Construction worker in a safety helmet">
@@ -503,54 +448,54 @@ function App() {
               {!loadingJobs && (visibleJobs.length ? visibleJobs.map((job) => {
                 const category = categories.find((item) => item.id === job.category) ?? categories[0]
                 const Icon = category.icon
-                return <article className="job-row" key={job.id}><div className={`listing-icon ${category.tone}`}><Icon size={20} /></div><div className="job-main"><strong>{job.role}</strong><span><MapPin size={12} /> {job.place}</span></div><div className="job-pay"><strong>₹{job.pay} <small>{t.perDay}</small></strong><span><Clock3 size={12} /> {job.posted}</span></div><div className="job-distance">{job.distance}</div><button className={`row-action ${applied.includes(job.id) ? 'is-applied' : ''}`} aria-label={applied.includes(job.id) ? 'Already applied' : `Apply to ${job.role}`} onClick={() => applyForJob(job.id)}>{applied.includes(job.id) ? <BadgeCheck size={19} /> : <ChevronRight size={19} />}</button></article>
+                return <article className="job-row" key={job.id}><div className={`listing-icon ${category.tone}`}><Icon size={20} /></div><div className="job-main"><strong>{job.role}</strong><span><MapPin size={12} /> {job.place}</span></div><div className="job-pay"><strong>₹{job.pay} <small>{t.perDay}</small></strong><span><Clock3 size={12} /> {job.posted}</span></div><div className="job-distance">{job.distance}</div><button className={`row-action ${appliedJobIds.has(job.id) ? 'is-applied' : ''}`} aria-label={appliedJobIds.has(job.id) ? 'Already applied' : `Apply to ${job.role}`} onClick={() => applyForJob(job.id)}>{appliedJobIds.has(job.id) ? <BadgeCheck size={19} /> : <ChevronRight size={19} />}</button></article>
               }) : <div className="empty-state"><Search size={22} /><p>{t.noResults}</p></div>)}
             </div>
           </div>
 
-          {(authRole === 'worker' || authRole === 'employer') && (
+          {authRole === 'worker' && (
             <div className="list-column" id="dashboard">
-              <div className="section-heading compact"><div><span className="section-kicker">LIVE DASHBOARD</span><h2>{authRole === 'worker' ? 'My applications' : 'Employer summary'}</h2></div></div>
+              <div className="section-heading compact"><div><span className="section-kicker">WORKER DASHBOARD</span><h2>My applications</h2></div></div>
               <div className="listing-stack">
-                {authRole === 'worker' ? (
-                  workerApplications.length ? workerApplications.map((application) => (
-                    <article className="job-row" key={application._id ?? application.jobId?._id ?? 'application'}>
-                      <div className="job-main">
-                        <strong>{application.jobId?.title ?? 'Application'}</strong>
-                        <span><MapPin size={12} /> {application.jobId?.location?.area ?? 'Nearby'} · {application.jobId?.employerName ?? 'Employer'}</span>
-                      </div>
-                      <div className="job-pay">
-                        <strong>₹{application.jobId?.payPerDay ?? 0} <small>{t.perDay}</small></strong>
-                        <span><Clock3 size={12} /> {formatRelativeTime(application.createdAt)}</span>
-                      </div>
-                      <div className="job-distance"><span className="availability"><span /> {application.status}</span></div>
-                    </article>
-                  )) : <div className="empty-state"><BadgeCheck size={22} /><p>No applications yet.</p></div>
-                ) : (
-                  employerJobs.length ? employerJobs.map((job) => (
-                    <article className="job-row" key={job._id ?? job.title ?? 'employer-job'}>
-                      <div className="job-main">
-                        <strong>{job.title}</strong>
-                        <span><MapPin size={12} /> {job.applicantSummary ? `${job.applicantSummary.submitted ?? 0} new` : 'Applicant list ready'}</span>
-                      </div>
-                      <div className="job-pay">
-                        <strong>{job.applicantSummary ? (job.applicantSummary.accepted ?? 0) : 0} <small>accepted</small></strong>
-                        <span><Clock3 size={12} /> {job.status ?? 'open'}</span>
-                      </div>
-                      <div className="job-distance">{job.applications?.length ?? 0} applicants</div>
-                    </article>
-                  )) : <div className="empty-state"><BriefcaseBusiness size={22} /><p>No jobs posted yet.</p></div>
-                )}
+                {workerApplications.length ? workerApplications.map((application) => (
+                  <article className="job-row" key={application._id ?? application.jobId?._id ?? 'application'}>
+                    <div className="job-main">
+                      <strong>{application.jobId?.title ?? 'Application'}</strong>
+                      <span><MapPin size={12} /> {application.jobId?.location?.area ?? 'Nearby'} · {application.jobId?.employerName ?? 'Employer'}</span>
+                    </div>
+                    <div className="job-pay">
+                      <strong>₹{application.jobId?.payPerDay ?? 0} <small>{t.perDay}</small></strong>
+                      <span><Clock3 size={12} /> {formatRelativeTime(application.createdAt)}</span>
+                    </div>
+                    <div className="job-distance"><span className="availability"><span /> {application.status}</span></div>
+                  </article>
+                )) : <div className="empty-state"><BadgeCheck size={22} /><p>No applications yet.</p></div>}
               </div>
+              <WorkerProfileEditor />
             </div>
           )}
 
-          <div className="list-column" id="workers">
-            <div className="section-heading compact"><div><span className="section-kicker">SKILLED PEOPLE, NEARBY</span><h2>{t.available}</h2></div><button className="text-link" onClick={() => setDialog('employer')}>{t.allWorkers} <ArrowRight size={15} /></button></div>
-            <div className="listing-stack worker-stack">
-              {visibleWorkers.length ? visibleWorkers.map((worker) => <article className="worker-row" key={worker.name}><img className="worker-avatar" src={`https://images.unsplash.com/${worker.image}?auto=format&fit=crop&w=96&h=96&q=80`} alt={`${worker.name}, ${worker.role}`} /><div className="worker-main"><strong>{worker.name}</strong><span>{worker.role}</span><small><Star size={12} fill="currentColor" /> {worker.rating} <span>({worker.reviews} reviews)</span></small></div><div className="worker-meta"><span className="availability"><span /> {t.availableBadge}</span><small><Clock3 size={12} /> {worker.experience}</small></div><div className="worker-distance"><MapPin size={12} /> {worker.distance}</div><button className="row-action" aria-label={`View ${worker.name}`} onClick={() => setDialog('employer')}><ChevronRight size={19} /></button></article>) : <div className="empty-state"><UsersRound size={22} /><p>{t.noResults}</p></div>}
-            </div>
-          </div>
+          {authRole === 'employer'
+            ? <EmployerDashboard refreshKey={employerDashboardRefresh} />
+            : <div className="list-column" id="dashboard">
+              <div className="section-heading compact"><div><span className="section-kicker">YOUR ACCOUNT</span><h2>Worker and employer tools</h2></div></div>
+              <div className="empty-state dashboard-sign-in">
+                <UsersRound size={22} />
+                <p>Sign in as a worker to manage your profile, or as an employer to review applicants and discover workers.</p>
+                <button className="button button-outline" type="button" onClick={() => setAuthOpen(true)}>Sign in or create account</button>
+              </div>
+            </div>}
+
+          {authRole === 'employer'
+            ? <WorkerDirectory city={location} />
+            : <div className="list-column" id="workers">
+              <div className="section-heading compact"><div><span className="section-kicker">SKILLED PEOPLE, NEARBY</span><h2>Worker profiles</h2></div></div>
+              <div className="empty-state worker-directory-locked">
+                <UsersRound size={22} />
+                <p>Worker profiles are shown only to employers and only when workers choose to share them.</p>
+                {authRole !== 'worker' && <button className="button button-outline" type="button" onClick={() => setAuthOpen(true)}>Sign in as an employer</button>}
+              </div>
+            </div>}
         </section>
 
         <section className="how-section" id="how-it-works">

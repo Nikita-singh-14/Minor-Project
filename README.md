@@ -10,7 +10,7 @@ A local-first job portal connecting workers and employers, starting with Bilaspu
 
 ## Run locally
 
-Requirements: Node.js 22+ and npm. MongoDB is needed for API job searches; the frontend demo can run without it.
+Requirements: Node.js 22+ and npm. MongoDB is required for API-backed job search, authentication, worker profiles, applications, and employer dashboards; the frontend demo can run without it.
 
 ```powershell
 npm install
@@ -20,7 +20,7 @@ if (-not (Test-Path server/.env)) { Copy-Item .env.example server/.env }
 npm run dev
 ```
 
-The client runs at `http://localhost:5173` and proxies `/api` requests to `http://localhost:4000` by default. If the API `PORT` differs, set `VITE_API_PROXY_TARGET` in `client/.env.local` to the matching API URL. Set `MONGODB_URI` in `server/.env` to a running MongoDB instance. Check `/api/health` through the client proxy or directly on the API port.
+The client runs at `http://localhost:5173` and proxies `/api` requests to `http://localhost:4000` by default. If the API `PORT` differs, set `VITE_API_PROXY_TARGET` in `client/.env.local` to the matching API URL. Set `MONGODB_URI` in `server/.env` to a running MongoDB instance. MongoDB is required for API-backed job searches and authentication; until the connection is healthy, those endpoints return `503` with a configuration or connection message. Check `/api/health` through the client proxy or directly on the API port.
 
 Phone OTP authentication has local development support only. Set `OTP_DEV_MODE=true` in `server/.env` while developing to return the generated code to the local client. The API refuses OTP requests in production until an SMS delivery provider is configured; never enable development OTP mode in production.
 
@@ -33,17 +33,25 @@ db.users.dropIndex("phone_1")
 db.users.createIndex({ phone: 1 }, { unique: true, sparse: true })
 ```
 
-For local OTP testing, add `OTP_DEV_MODE=true` to `server/.env`. If your API is running on port 3000, add `VITE_API_PROXY_TARGET=http://localhost:3000` to `client/.env.local`; the Vite proxy defaults to port 4000. Register with `POST /api/auth/otp/request` using `purpose: "register"`, `phone`, `name`, and `role`, then verify at `POST /api/auth/otp/verify`. Login uses the same request endpoint with `purpose: "login"` and `phone`. Authenticated session inspection/revocation is available at `GET /api/auth/me` and `POST /api/auth/logout`. Public registration roles are worker and employer; admin accounts must be provisioned outside public signup.
+For local OTP testing, start MongoDB and add `OTP_DEV_MODE=true` to `server/.env`. If your API is running on port 3000, add `VITE_API_PROXY_TARGET=http://localhost:3000` to `client/.env.local`; the Vite proxy defaults to port 4000. Register with `POST /api/auth/otp/request` using `purpose: "register"`, `phone`, `name`, and `role`, then verify at `POST /api/auth/otp/verify`. Login uses the same request endpoint with `purpose: "login"` and `phone`. Authenticated session inspection/revocation is available at `GET /api/auth/me` and `POST /api/auth/logout`. Public registration roles are worker and employer; admin accounts must be provisioned outside public signup.
+
+## Worker profiles and employer applications
+
+Workers can manage their skills, experience, preferred city/area, and profile summary from the signed-in worker dashboard. A profile is hidden from employers by default. Workers must enable profile discovery to appear in search; sharing a phone number is a separate opt-in and is available only when the account has a phone number.
+
+Employers can search visible worker profiles by name, skill, bio, and preferred city using `GET /api/workers?q=mason&city=Bilaspur&page=1&limit=12`. This endpoint requires an employer session and returns only profiles whose owner enabled discovery. Workers read and update their own profile with `GET /api/workers/me` and `PUT /api/workers/me`.
+
+The employer dashboard lists jobs and their applicants. Employers can mark a submitted application as reviewed or make a final accepted/rejected decision. Final decisions cannot be changed through the API.
 
 ## Current build
 
 - Responsive Hindi/English job discovery page with location, category, and keyword filters.
-- Sample job and worker listings for the initial Bilaspur experience.
-- Job listings and job posting use MongoDB when the API and database are available; application markers remain browser-local.
-- Mongoose schemas exist for users, OTP challenges, sessions, jobs, applications, and moderation events. OTP authentication routes create/find users and sessions; application and moderation schemas are not yet wired to routes.
+- Sample job listings for the initial Bilaspur experience; worker discovery uses opt-in profiles stored in MongoDB.
+- Job listings, job posting, applications, worker profiles, and employer applicant decisions use MongoDB when the API and database are available.
+- Mongoose schemas exist for users, OTP challenges, sessions, jobs, applications, and moderation events. Authentication, application, and worker profile routes are wired; admin moderation routes are not yet implemented.
 - Email/password accounts and revocable sessions are available for production; phone OTP is limited to local development. Employer job creation requires an employer session and derives ownership from that session.
-- Express health endpoint and public, paginated MongoDB job-search endpoint.
-- Production SMS delivery, application workflows, and admin moderation remain unimplemented.
+- Express health endpoint and paginated MongoDB job-search and worker-discovery endpoints.
+- Production SMS delivery and admin moderation remain unimplemented.
 
 ## Useful commands
 

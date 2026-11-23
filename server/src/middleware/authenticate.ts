@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
 import { readSessionCookie } from '../auth/sessionCookie.js'
+import { databaseUnavailableMessage, isDatabaseReady } from './requireDatabase.js'
 import { AuthSessionModel } from '../models/AuthSession.js'
 import { UserModel } from '../models/User.js'
 import type { UserRole } from '../models/User.js'
@@ -20,6 +21,10 @@ export async function authenticate(request: Request, response: Response, next: N
 
   if (!token) {
     response.status(401).json({ error: 'Authentication required' })
+    return
+  }
+  if (!isDatabaseReady()) {
+    response.status(503).json({ error: databaseUnavailableMessage() })
     return
   }
 

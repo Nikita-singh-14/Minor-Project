@@ -1,9 +1,12 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { requireDatabase } from '../middleware/requireDatabase.js'
 import { JobModel } from '../models/Job.js'
 import { authenticate, requireRole } from '../middleware/authenticate.js'
 
 const router = Router()
+router.use(requireDatabase)
+
 const filtersSchema = z.object({
   q: z.string().trim().max(100).optional(),
   category: z.string().trim().max(40).optional(),
