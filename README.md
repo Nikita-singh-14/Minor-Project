@@ -43,6 +43,12 @@ Employers can search visible worker profiles by name, skill, bio, and preferred 
 
 The employer dashboard lists jobs and their applicants. Employers can mark a submitted application as reviewed or make a final accepted/rejected decision. Final decisions cannot be changed through the API.
 
+## Reviews and salary tracking
+
+After an application is accepted, the worker and the job's employer can each submit one 1–5 star review with an optional comment. Users can see reviews received and leave eligible reviews in their dashboard. Employers see average worker ratings and review counts in worker search; workers see employer ratings on job listings. Reviews are tied to the accepted application and cannot be submitted by unrelated accounts.
+
+Employers can record an offline salary payment for an accepted application, including amount, date, and an optional note. The payment remains pending until the associated worker confirms receipt; the worker can instead dispute it with an explanation. Both parties can see the record and its state in their dashboards. These are records of payments handled outside Rozgaar Setu: the app does not collect, transfer, or independently verify money. A disputed record remains visible as disputed; employers can record a corrected/new payment separately for worker confirmation.
+
 ## Current build
 
 - Responsive Hindi/English job discovery page with location, category, and keyword filters.

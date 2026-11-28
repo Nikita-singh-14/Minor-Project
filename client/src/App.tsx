@@ -26,11 +26,12 @@ import AuthDialog from './AuthDialog'
 import EmployerDashboard from './EmployerDashboard'
 import WorkerDirectory from './WorkerDirectory'
 import WorkerProfileEditor from './WorkerProfileEditor'
+import WorkHistory from './WorkHistory'
 import { apiUrl } from './api'
 import './App.css'
 
 type Category = { id: string; en: string; hi: string; icon: LucideIcon; tone: string }
-type Job = { id: string; role: string; employer: string; place: string; pay: number; unit: string; posted: string; category: string; distance: string }
+type Job = { id: string; role: string; employer: string; place: string; pay: number; unit: string; posted: string; category: string; distance: string; employerRating?: number | null; employerReviewCount?: number }
 type Dialog = 'worker' | 'employer' | 'admin' | 'post' | null
 
 type Role = 'worker' | 'employer' | 'admin'
@@ -61,6 +62,8 @@ type BackendJob = {
   location: { city: string; area: string }
   createdAt?: string
   status?: string
+  averageRating?: number | null
+  reviewCount?: number
 }
 
 type WorkerApplication = {
@@ -130,7 +133,9 @@ function App() {
   const [loadingJobs, setLoadingJobs] = useState(false)
   const [workerApplications, setWorkerApplications] = useState<WorkerApplication[]>([])
   const [employerDashboardRefresh, setEmployerDashboardRefresh] = useState(0)
+  const [workHistoryRefresh, setWorkHistoryRefresh] = useState(0)
   const [authRole, setAuthRole] = useState<Role | null>(null)
+  const [authDefaultRole, setAuthDefaultRole] = useState<'worker' | 'employer'>('worker')
   const [authOpen, setAuthOpen] = useState(false)
   const t = copy[language]
   const appliedJobIds = useMemo(() => new Set(workerApplications.map((application) => application.jobId?._id).filter((id): id is string => Boolean(id))), [workerApplications])
@@ -178,6 +183,8 @@ function App() {
       posted: formatRelativeTime(item.createdAt),
       category: item.category,
       distance: 'Nearby',
+      employerRating: item.averageRating,
+      employerReviewCount: item.reviewCount,
     }
   }
 
@@ -269,6 +276,7 @@ function App() {
 
   async function applyForJob(jobId: string) {
     if (authRole !== 'worker') {
+      setAuthDefaultRole('worker')
       setAuthOpen(true)
       showToast('Sign in with a worker account to apply for a job.')
       return
@@ -316,6 +324,7 @@ function App() {
     event.preventDefault()
     if (authRole !== 'employer') {
       setDialog(null)
+      setAuthDefaultRole('employer')
       setAuthOpen(true)
       showToast('Sign in with an employer account to post a job.')
       return
@@ -394,7 +403,7 @@ function App() {
           <button className="language-control" onClick={() => setLanguage(language === 'hi' ? 'en' : 'hi')} aria-label="Switch language">文 <span>{language === 'hi' ? 'हिंदी' : 'English'}</span><ChevronDown size={13} /></button>
           {authRole
             ? <button className="button button-outline header-login" onClick={() => void signOut()}>Sign out</button>
-            : <><button className="button button-outline header-login" onClick={() => setAuthOpen(true)}><UsersRound size={15} /> Login</button><button className="button button-primary header-signup" onClick={() => setAuthOpen(true)}>Sign Up <ArrowRight size={15} /></button></>}
+            : <><button className="button button-outline header-login" onClick={() => { setAuthDefaultRole(authRole === 'worker' ? 'worker' : 'employer'); setAuthOpen(true) }}><UsersRound size={15} /> Login</button><button className="button button-primary header-signup" onClick={() => { setAuthDefaultRole('worker'); setAuthOpen(true) }}>Sign Up <ArrowRight size={15} /></button></>}
           <button className="icon-button mobile-menu" aria-label="Toggle menu" onClick={() => setMobileNavOpen(!mobileNavOpen)}>{mobileNavOpen ? <X /> : <Menu />}</button>
         </div>
         <nav className={`main-nav ${mobileNavOpen ? 'is-open' : ''}`}>
@@ -409,8 +418,8 @@ function App() {
             <h1>{language === 'hi' ? <>काम से बने<br /><span>बेहतर कल।</span></> : <>Work today.<br /><span>Build a better tomorrow.</span></>}</h1>
             <p>{t.subtitle}</p>
             <div className="hero-actions">
-              <button className="role-button role-worker" onClick={() => setAuthOpen(true)}><UsersRound size={25} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
-              <button className="role-button role-employer" onClick={() => { if (authRole === 'employer') setDialog('post'); else if (authRole === 'worker') showToast('An employer account is required to post jobs.'); else setAuthOpen(true) }}><HardHat size={25} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
+              <button className="role-button role-worker" onClick={() => { setAuthDefaultRole('worker'); setAuthOpen(true) }}><UsersRound size={25} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
+              <button className="role-button role-employer" onClick={() => { if (authRole === 'employer') setDialog('post'); else if (authRole === 'worker') showToast('An employer account is required to post jobs.'); else { setAuthDefaultRole('employer'); setAuthOpen(true) } }}><HardHat size={25} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ArrowRight className="role-arrow" size={16} /></button>
             </div>
             <div className="trust-row"><span><ShieldCheck size={17} /> {t.safe}</span><span><MapPin size={17} /> {t.local}</span><span><UsersRound size={17} /> {t.simple}</span></div>
           </div>
@@ -448,7 +457,7 @@ function App() {
               {!loadingJobs && (visibleJobs.length ? visibleJobs.map((job) => {
                 const category = categories.find((item) => item.id === job.category) ?? categories[0]
                 const Icon = category.icon
-                return <article className="job-row" key={job.id}><div className={`listing-icon ${category.tone}`}><Icon size={20} /></div><div className="job-main"><strong>{job.role}</strong><span><MapPin size={12} /> {job.place}</span></div><div className="job-pay"><strong>₹{job.pay} <small>{t.perDay}</small></strong><span><Clock3 size={12} /> {job.posted}</span></div><div className="job-distance">{job.distance}</div><button className={`row-action ${appliedJobIds.has(job.id) ? 'is-applied' : ''}`} aria-label={appliedJobIds.has(job.id) ? 'Already applied' : `Apply to ${job.role}`} onClick={() => applyForJob(job.id)}>{appliedJobIds.has(job.id) ? <BadgeCheck size={19} /> : <ChevronRight size={19} />}</button></article>
+                return <article className="job-row" key={job.id}><div className={`listing-icon ${category.tone}`}><Icon size={20} /></div><div className="job-main"><strong>{job.role}</strong><span><MapPin size={12} /> {job.place}{job.employerReviewCount ? <span className="inline-rating" aria-label={`${job.employerRating} out of 5 stars`}> · ★ {job.employerRating} ({job.employerReviewCount})</span> : null}</span></div><div className="job-pay"><strong>₹{job.pay} <small>{t.perDay}</small></strong><span><Clock3 size={12} /> {job.posted}</span></div><div className="job-distance">{job.distance}</div><button className={`row-action ${appliedJobIds.has(job.id) ? 'is-applied' : ''}`} aria-label={appliedJobIds.has(job.id) ? 'Already applied' : `Apply to ${job.role}`} onClick={() => applyForJob(job.id)}>{appliedJobIds.has(job.id) ? <BadgeCheck size={19} /> : <ChevronRight size={19} />}</button></article>
               }) : <div className="empty-state"><Search size={22} /><p>{t.noResults}</p></div>)}
             </div>
           </div>
@@ -471,18 +480,19 @@ function App() {
                   </article>
                 )) : <div className="empty-state"><BadgeCheck size={22} /><p>No applications yet.</p></div>}
               </div>
+              <WorkHistory role="worker" refreshKey={workHistoryRefresh} />
               <WorkerProfileEditor />
             </div>
           )}
 
           {authRole === 'employer'
-            ? <EmployerDashboard refreshKey={employerDashboardRefresh} />
+            ? <><EmployerDashboard refreshKey={employerDashboardRefresh} onPaymentRecorded={() => setWorkHistoryRefresh((current) => current + 1)} /><WorkHistory role="employer" refreshKey={workHistoryRefresh} /></>
             : <div className="list-column" id="dashboard">
               <div className="section-heading compact"><div><span className="section-kicker">YOUR ACCOUNT</span><h2>Worker and employer tools</h2></div></div>
               <div className="empty-state dashboard-sign-in">
                 <UsersRound size={22} />
                 <p>Sign in as a worker to manage your profile, or as an employer to review applicants and discover workers.</p>
-                <button className="button button-outline" type="button" onClick={() => setAuthOpen(true)}>Sign in or create account</button>
+                <button className="button button-outline" type="button" onClick={() => { setAuthDefaultRole('worker'); setAuthOpen(true) }}>Sign in or create account</button>
               </div>
             </div>}
 
@@ -493,7 +503,7 @@ function App() {
               <div className="empty-state worker-directory-locked">
                 <UsersRound size={22} />
                 <p>Worker profiles are shown only to employers and only when workers choose to share them.</p>
-                {authRole !== 'worker' && <button className="button button-outline" type="button" onClick={() => setAuthOpen(true)}>Sign in as an employer</button>}
+                {authRole !== 'worker' && <button className="button button-outline" type="button" onClick={() => { setAuthDefaultRole('employer'); setAuthOpen(true) }}>Sign in as an employer</button>}
               </div>
             </div>}
         </section>
@@ -506,10 +516,10 @@ function App() {
         <section className="stats-band"><div className="stats-intro"><span className="india-mark"><MapPin size={31} /></span><div><span className="section-kicker">LOCAL WORK, REAL IMPACT</span><h2>{t.statsTitle}</h2><p>छोटे शहर, बड़े सपने — Rozgaar Setu के साथ</p></div></div><div className="stat"><UsersRound size={22} /><strong>10,000+</strong><span>{t.statsWorkers}</span></div><div className="stat"><BriefcaseBusiness size={22} /><strong>5,000+</strong><span>{t.statsJobs}</span></div><div className="stat"><MapPin size={22} /><strong>200+</strong><span>{t.statsTowns}</span></div><div className="stat"><Star size={22} fill="currentColor" /><strong>4.7</strong><span>{t.rating}</span></div></section>
       </main>
 
-      <footer className="site-footer" id="footer"><div className="footer-brand"><a className="brand footer-logo" href="#top"><span className="brand-mark"><UsersRound size={24} /><span /></span><span className="brand-copy"><strong>Rozgaar <em>Setu</em></strong><small>काम से बने, भारत से जुड़ें</small></span></a><p>“हर हाथ को काम, हर घर में सम्मान”</p></div><div className="footer-links"><strong>Quick links</strong><button onClick={() => scrollTo('jobs')}>{t.jobs}</button><button onClick={() => scrollTo('workers')}>{t.workers}</button><button onClick={() => scrollTo('categories')}>{t.allCategories}</button></div><div className="footer-links"><strong>For everyone</strong><button onClick={() => setAuthOpen(true)}>{t.worker}</button><button onClick={() => setDialog('post')}>{t.postTitle}</button><button onClick={() => setDialog('admin')}>Admin</button></div><div className="footer-connect"><strong>काम आपके पास है।</strong><span>Bilaspur, Chhattisgarh</span><button className="footer-post" onClick={() => setDialog('post')}>{t.postTitle} <ArrowRight size={15} /></button></div><span className="footer-bottom">Made with care for a stronger India <span>◆</span></span></footer>
+      <footer className="site-footer" id="footer"><div className="footer-brand"><a className="brand footer-logo" href="#top"><span className="brand-mark"><UsersRound size={24} /><span /></span><span className="brand-copy"><strong>Rozgaar <em>Setu</em></strong><small>काम से बने, भारत से जुड़ें</small></span></a><p>“हर हाथ को काम, हर घर में सम्मान”</p></div><div className="footer-links"><strong>Quick links</strong><button onClick={() => scrollTo('jobs')}>{t.jobs}</button><button onClick={() => scrollTo('workers')}>{t.workers}</button><button onClick={() => scrollTo('categories')}>{t.allCategories}</button></div><div className="footer-links"><strong>For everyone</strong><button onClick={() => { setAuthDefaultRole('worker'); setAuthOpen(true) }}>{t.worker}</button><button onClick={() => setDialog('post')}>{t.postTitle}</button><button onClick={() => setDialog('admin')}>Admin</button></div><div className="footer-connect"><strong>काम आपके पास है।</strong><span>Bilaspur, Chhattisgarh</span><button className="footer-post" onClick={() => setDialog('post')}>{t.postTitle} <ArrowRight size={15} /></button></div><span className="footer-bottom">Made with care for a stronger India <span>◆</span></span></footer>
 
       {dialog && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null) }}><section className="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><button className="dialog-close icon-button" onClick={() => setDialog(null)} aria-label={t.close}><X size={19} /></button>{dialog === 'post' ? <><span className="dialog-icon"><HardHat size={22} /></span><span className="section-kicker">EMPLOYER SPACE</span><h2 id="dialog-title">{t.postHeading}</h2><p className="dialog-description">काम की जानकारी दें, आसपास के कामगारों तक पहुंचें।</p><form className="dialog-form" onSubmit={publishJob}><label>{t.jobTitle}<input name="title" placeholder="जैसे घर की पेंटिंग" required /></label><label>{t.category}<select name="category">{categories.map((category) => <option value={category.id} key={category.id}>{category.hi}</option>)}</select></label><div className="form-split"><label>{t.pay}<input name="pay" type="number" min="100" required placeholder="700" /></label><label>{t.area}<input name="area" required defaultValue={location} /></label></div><button className="button button-primary dialog-submit" type="submit">{t.publish}<ArrowRight size={16} /></button><p className="demo-note">Demo mode: listings are temporary and saved in this browser session.</p></form></> : <><span className="dialog-icon"><UsersRound size={22} /></span><span className="section-kicker">YOUR NEXT STEP</span><h2 id="dialog-title">{t.roleTitle}</h2><p className="dialog-description">{t.roleSub}</p><div className="role-options"><button onClick={() => setDialog('worker')}><UsersRound size={20} /><span><strong>{t.worker}</strong><small>{t.workerSub}</small></span><ChevronRight size={17} /></button><button onClick={() => setDialog('post')}><HardHat size={20} /><span><strong>{t.employer}</strong><small>{t.employerSub}</small></span><ChevronRight size={17} /></button><button onClick={() => { setDialog(null); showToast('Admin access will be configured in the next build phase.') }}><ShieldCheck size={20} /><span><strong>Admin</strong><small>Manage the Rozgaar Setu platform</small></span><ChevronRight size={17} /></button></div><form className="dialog-form login-form" onSubmit={(event) => { event.preventDefault(); setDialog(null); showToast('Account sign-in will be connected to the API next.') }}><label>{t.name}<input name="name" autoComplete="name" required placeholder="नाम लिखें" /></label><label>{t.phone}<input name="phone" type="tel" inputMode="tel" autoComplete="tel" pattern="[0-9+() -]{8,16}" required placeholder="मोबाइल नंबर" /></label><button className="button button-primary dialog-submit" type="submit">{t.continue}<ArrowRight size={16} /></button><p className="demo-note">Demo mode: authentication and verification are not connected yet.</p></form></>}</section></div>}
-      {authOpen && <AuthDialog defaultRole={authRole === 'worker' ? 'worker' : 'employer'} onClose={() => setAuthOpen(false)} onAuthenticated={finishAuthentication} />}
+      {authOpen && <AuthDialog defaultRole={authDefaultRole} onClose={() => setAuthOpen(false)} onAuthenticated={finishAuthentication} />}
       {toast && <div className="toast-message" role="status"><BadgeCheck size={17} /> {toast}</div>}
     </div>
   )

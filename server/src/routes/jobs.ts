@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireDatabase } from '../middleware/requireDatabase.js'
 import { JobModel } from '../models/Job.js'
 import { authenticate, requireRole } from '../middleware/authenticate.js'
+import { ReviewModel } from '../models/Review.js'
 
 const router = Router()
 router.use(requireDatabase)
@@ -43,8 +44,22 @@ router.get('/', async (request, response, next) => {
       JobModel.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       JobModel.countDocuments(filter),
     ])
+    const ratings = await ReviewModel.aggregate([
+      { $match: { revieweeId: { $in: jobs.map((job) => job.employerId) } } },
+      { $group: { _id: '$revieweeId', averageRating: { $avg: '$rating' }, reviewCount: { $sum: 1 } } },
+    ])
+    const ratingsByEmployer = new Map(ratings.map((rating) => [
+      rating._id.toString(),
+      { averageRating: Math.round(rating.averageRating * 10) / 10, reviewCount: rating.reviewCount },
+    ]))
 
-    response.json({ jobs, pagination: { page, limit, total, pages: Math.ceil(total / limit) } })
+    response.json({
+      jobs: jobs.map((job) => ({
+        ...job,
+        ...(ratingsByEmployer.get(job.employerId.toString()) ?? { averageRating: null, reviewCount: 0 }),
+      })),
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     next(error)
   }

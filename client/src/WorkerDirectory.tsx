@@ -10,6 +10,8 @@ type Worker = {
   experienceYears: number | null
   preferredLocations: Array<{ city: string; area?: string }>
   phone?: string
+  averageRating: number | null
+  reviewCount: number
 }
 
 type Pagination = { page: number; pages: number; total: number }
@@ -95,6 +97,7 @@ export default function WorkerDirectory({ city }: { city: string }) {
                   </div>
                   {worker.phone && <a className="button button-outline worker-contact" href={`tel:${worker.phone}`}>Call</a>}
                 </div>
+                <p className="worker-rating"><span aria-label={worker.averageRating ? `${worker.averageRating} out of 5 stars` : 'No ratings yet'}>★ {worker.averageRating ?? 'New'}</span> {worker.reviewCount ? `· ${worker.reviewCount} review${worker.reviewCount === 1 ? '' : 's'}` : '· No reviews yet'}</p>
                 {(preferredLocation?.city || preferredLocation?.area) && <p className="worker-profile-location"><MapPin size={13} /> {[preferredLocation.area, preferredLocation.city].filter(Boolean).join(', ')}</p>}
                 {worker.bio && <p className="worker-profile-bio">{worker.bio}</p>}
                 <div className="worker-skill-list">

@@ -6,6 +6,8 @@ import authRouter from './routes/auth.js'
 import jobsRouter from './routes/jobs.js'
 import applicationsRouter from './routes/applications.js'
 import workersRouter from './routes/workers.js'
+import reviewsRouter from './routes/reviews.js'
+import paymentsRouter from './routes/payments.js'
 
 const app = express()
 const clientOrigin = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173'
@@ -37,6 +39,8 @@ app.get('/api/health', (_request, response) => {
 app.use('/api/auth', authRouter)
 app.use('/api', applicationsRouter)
 app.use('/api/workers', workersRouter)
+app.use('/api/reviews', reviewsRouter)
+app.use('/api/payments', paymentsRouter)
 app.use('/api/jobs', jobsRouter)
 
 app.use((_request, response) => {

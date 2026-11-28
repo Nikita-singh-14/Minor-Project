@@ -111,6 +111,7 @@
 .job-main, .job-pay, .worker-main, .worker-meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .job-main strong, .worker-main strong { overflow: hidden; color: #243c50; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; }
 .job-main > span, .job-pay > span { overflow: hidden; display: flex; align-items: center; gap: 3px; color: #788792; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
+.job-main > span .inline-rating { display: inline; overflow: visible; color: #b98504; }
 .job-pay { align-items: flex-start; }
 .job-pay > strong { color: #13844f; white-space: nowrap; font-size: 11px; }
 .job-pay > strong small { font-size: 8px; font-weight: 500; }
@@ -156,6 +157,8 @@
 .worker-skill-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
 .worker-skill-list span { padding: 4px 7px; border-radius: 999px; background: #eff5f8; color: #426073; font-size: 9px; }
 .worker-profile-visible { display: flex; align-items: center; gap: 4px; margin-top: 9px; color: #278151; font-size: 9px; }
+.worker-rating { margin: 8px 0 0; color: #71818d; font-size: 10px; }
+.worker-rating > span, .review-stars { color: #e5a80c; font-weight: 700; }
 .worker-contact { min-height: 30px; padding: 6px 9px; font-size: 10px; }
 .employer-dashboard { min-width: 0; }
 .employer-job-list { display: flex; flex-direction: column; gap: 9px; }
@@ -173,6 +176,29 @@
 .application-actions .button:disabled { cursor: wait; opacity: .65; }
 .application-reject { color: #b42318; border-color: #e8c9c7; }
 .no-applicants { display: flex; align-items: center; gap: 5px; margin: 10px 0 0; color: #75848f; font-size: 10px; }
+.payment-entry { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding: 10px; border: 1px solid #e6ebee; border-radius: 8px; background: #f9fbfc; }
+.payment-entry > strong { color: #29485e; font-size: 10px; }
+.payment-entry label, .work-history-form label { display: flex; flex-direction: column; gap: 5px; color: #526a7b; font-size: 10px; font-weight: 700; }
+.payment-entry input, .work-history-form select, .work-history-form textarea { width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid #dce5ea; border-radius: 7px; background: #fff; color: #233e51; font-size: 11px; }
+.payment-entry-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.payment-entry .button { align-self: flex-start; min-height: 30px; padding: 5px 8px; font-size: 9px; }
+.work-history-panel { min-width: 0; margin-top: 16px; padding: 13px; border: 1px solid #e6ebee; border-radius: 10px; background: #fff; }
+.work-history-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.work-history-column { min-width: 0; }
+.work-history-column > h3 { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; color: #29485e; font-size: 11px; }
+.work-history-list { display: flex; flex-direction: column; gap: 7px; }
+.work-history-card { display: flex; flex-direction: column; gap: 5px; padding: 9px; border: 1px solid #e7edf0; border-radius: 8px; background: #fbfdfe; }
+.work-history-card > strong { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #29485e; font-size: 10px; }
+.work-history-card > span { color: #71818d; font-size: 9px; text-transform: capitalize; }
+.work-history-card > p { margin: 0; color: #526879; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.work-history-card .profile-success { margin-top: 3px; }
+.work-history-form { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+.work-history-form textarea { min-height: 58px; resize: vertical; }
+.work-history-form .button { min-height: 30px; padding: 5px 8px; font-size: 9px; }
+.payment-status { align-self: flex-start; padding: 3px 6px; border-radius: 5px; background: #fff5d8; color: #88640b !important; }
+.payment-paid { background: #e7f7e9; color: #22824b !important; }
+.payment-disputed { background: #fff0ef; color: #b42318 !important; }
+.work-history-empty { margin: 0; padding: 10px; border: 1px dashed #dce4e9; border-radius: 8px; color: #8494a0; font-size: 10px; line-height: 1.5; }
 
 .how-section { padding: 30px max(24px, calc((100vw - 1560px) / 2)) 34px; display: grid; grid-template-columns: minmax(180px, .72fr) 1.28fr; gap: 30px; align-items: center; background: #fbf8f1; border-top: 1px solid #f3eee4; border-bottom: 1px solid #f3eee4; }
 .how-heading h2 { font-size: 22px; }
@@ -323,6 +349,8 @@
   .category-tile > svg { width: 21px; height: 21px; }
   .category-tile > span:last-child { font-size: 9px; }
   .listings-section { gap: 19px; padding-bottom: 20px; }
+  .work-history-grid { grid-template-columns: 1fr; }
+  .payment-entry-fields { grid-template-columns: 1fr; }
   .section-heading.compact { min-height: 38px; }
   .job-row { grid-template-columns: 35px minmax(75px, 1fr) auto 19px; gap: 6px; min-height: 58px; padding: 6px; }
   .listing-icon { width: 33px; height: 35px; }

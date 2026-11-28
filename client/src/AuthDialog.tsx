@@ -15,6 +15,7 @@ type AuthResponse = {
   error?: string
   developmentOtp?: string
   user?: { role: AuthenticatedRole }
+  existingRole?: AccountRole | 'admin'
 }
 
 type AuthMethod = 'email' | 'phone'

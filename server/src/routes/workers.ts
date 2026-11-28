@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { authenticate, requireRole } from '../middleware/authenticate.js'
 import { requireDatabase } from '../middleware/requireDatabase.js'
 import { UserModel } from '../models/User.js'
+import { ReviewModel } from '../models/Review.js'
 
 const router = Router()
 router.use(requireDatabase)
@@ -137,6 +138,14 @@ router.get('/', authenticate, requireRole('employer'), async (request, response,
         .lean(),
       UserModel.countDocuments(filter),
     ])
+    const ratingSummaries = await ReviewModel.aggregate([
+      { $match: { revieweeId: { $in: workers.map((worker) => worker._id) } } },
+      { $group: { _id: '$revieweeId', averageRating: { $avg: '$rating' }, reviewCount: { $sum: 1 } } },
+    ])
+    const ratingsByWorker = new Map(ratingSummaries.map((summary) => [
+      summary._id.toString(),
+      { averageRating: Math.round(summary.averageRating * 10) / 10, reviewCount: summary.reviewCount },
+    ]))
 
     response.json({
       workers: workers.map((worker) => ({
@@ -146,6 +155,7 @@ router.get('/', authenticate, requireRole('employer'), async (request, response,
         skills: worker.workerProfile?.skills ?? [],
         experienceYears: worker.workerProfile?.experienceYears ?? null,
         preferredLocations: worker.workerProfile?.preferredLocations ?? [],
+        ...(ratingsByWorker.get(worker._id.toString()) ?? { averageRating: null, reviewCount: 0 }),
         ...(worker.workerProfile?.contactVisible && worker.phone ? { phone: worker.phone } : {}),
       })),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },

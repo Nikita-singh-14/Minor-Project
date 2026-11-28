@@ -17,7 +17,7 @@ const workerProfileSchema = new Schema({
 }, { _id: false })
 
 const userSchema = new Schema({
-  phone: { type: String, trim: true, unique: true, sparse: true, maxlength: 20 },
+  phone: { type: String, trim: true, maxlength: 20 },
   email: { type: String, trim: true, lowercase: true, unique: true, sparse: true, maxlength: 254 },
   passwordHash: { type: String, select: false },
   passwordSalt: { type: String, select: false },
@@ -39,6 +39,10 @@ const userSchema = new Schema({
 }, { timestamps: true })
 
 userSchema.index({ role: 1, accountStatus: 1, 'workerProfile.isVisible': 1, 'workerProfile.preferredLocations.city': 1 })
+userSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: 'string' } } },
+)
 
 export type UserRecord = InferSchemaType<typeof userSchema>
 export type UserRole = typeof userRoles[number]

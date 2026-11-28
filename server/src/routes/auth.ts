@@ -75,9 +75,15 @@ router.post('/password/register', requireDatabase, async (request, response, nex
   }
 
   try {
-    const existingUser = await UserModel.findOne({ email: parsed.data.email }).select('_id').lean()
+    const existingUser = await UserModel.findOne({ email: parsed.data.email }).select('_id role').lean()
     if (existingUser) {
-      response.status(409).json({ error: 'An account already exists for this email. Please sign in instead.' })
+      const accountType = existingUser.role === 'worker' ? 'Worker' : existingUser.role === 'employer' ? 'Employer' : 'This'
+      response.status(409).json({
+        error: existingUser.role === parsed.data.role
+          ? 'An account already exists for this email. Please sign in instead.'
+          : `This email is already registered as a ${accountType} account. Sign in instead, or use another email to create a ${parsed.data.role === 'worker' ? 'Worker' : 'Employer'} account.`,
+        existingRole: existingUser.role,
+      })
       return
     }
 
@@ -188,7 +194,13 @@ router.post('/otp/request', requireDatabase, async (request, response, next) => 
 
     if (parsed.data.purpose === 'register') {
       if (existingUser) {
-        response.status(409).json({ error: 'An account already exists for this number. Please sign in instead.' })
+        const accountType = existingUser.role === 'worker' ? 'Worker' : existingUser.role === 'employer' ? 'Employer' : 'This'
+        response.status(409).json({
+          error: existingUser.role === parsed.data.role
+            ? 'An account already exists for this number. Please sign in instead.'
+            : `This number is already registered as a ${accountType} account. Sign in instead, or use another number to create a ${parsed.data.role === 'worker' ? 'Worker' : 'Employer'} account.`,
+          existingRole: existingUser.role,
+        })
         return
       }
       if (!parsed.data.name || !parsed.data.role) {
